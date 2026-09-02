@@ -75,13 +75,13 @@ export const MultiplayerRoom: React.FC<MultiplayerRoomProps> = ({
   const matchTimerRef = useRef<any>(null);
 
   // Calculate my team rating
-  const myStarters = Object.values(mySquad).filter((p): p is Player => p !== null);
+  const myStarters = Object.values(mySquad).filter((p): p is Player => Boolean(p));
   const myOvr = myStarters.length
     ? Math.round(myStarters.reduce((acc, p) => acc + p.ovr, 0) / myStarters.length)
     : 75;
 
   // Calculate opponent rating
-  const oppStarters = Object.values(opponentSquad).filter((p): p is Player => p !== null);
+  const oppStarters = Object.values(opponentSquad).filter((p): p is Player => Boolean(p));
   const oppOvr = oppStarters.length
     ? Math.round(oppStarters.reduce((acc, p) => acc + p.ovr, 0) / oppStarters.length)
     : 80;

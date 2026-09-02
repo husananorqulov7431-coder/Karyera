@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Player, FormationKey, SlotDef, CardBackgroundTheme } from '../types';
+import { Player, FormationKey, SlotDef, CardBackgroundTheme, PositionRole } from '../types';
+import { FORMATION_CONFIGS, determineRoleFromCoordinates } from '../data/formations';
 import { FutCard } from './FutCard';
 import { PlayerAvatar } from './PlayerAvatar';
 import { sfxClick, sfxCardFlip } from '../utils/audio';
@@ -10,10 +11,18 @@ import {
   ArrowRightLeft,
   X,
   Repeat,
-  CheckCircle2,
-  ChevronRight,
+  RotateCcw,
+  Sliders,
+  Move,
+  Flame,
   Shield,
-  Zap
+  Zap,
+  Target,
+  Eye,
+  EyeOff,
+  Compass,
+  Layers,
+  ChevronDown
 } from 'lucide-react';
 
 interface PitchBoardProps {
@@ -31,168 +40,7 @@ interface PitchBoardProps {
   availablePlayers: Player[];
 }
 
-const FORMATION_CONFIGS: Record<FormationKey, { name: string; slots: SlotDef[] }> = {
-  '4-3-3': {
-    name: '4-3-3 Hujumkor',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'lb', role: 'LB', x: 16, y: 72, zone: 'DEF' },
-      { id: 'cb1', role: 'CB', x: 38, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 62, y: 74, zone: 'DEF' },
-      { id: 'rb', role: 'RB', x: 84, y: 72, zone: 'DEF' },
-      { id: 'cm1', role: 'CMF', x: 28, y: 50, zone: 'MID' },
-      { id: 'cdm', role: 'DMF', x: 50, y: 54, zone: 'MID' },
-      { id: 'cm2', role: 'CMF', x: 72, y: 50, zone: 'MID' },
-      { id: 'lw', role: 'LWF', x: 18, y: 24, zone: 'FWD' },
-      { id: 'st', role: 'CF', x: 50, y: 18, zone: 'FWD' },
-      { id: 'rw', role: 'RWF', x: 82, y: 24, zone: 'FWD' }
-    ]
-  },
-  '4-2-3-1': {
-    name: '4-2-3-1 Muvozanatli',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'lb', role: 'LB', x: 16, y: 72, zone: 'DEF' },
-      { id: 'cb1', role: 'CB', x: 38, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 62, y: 74, zone: 'DEF' },
-      { id: 'rb', role: 'RB', x: 84, y: 72, zone: 'DEF' },
-      { id: 'cdm1', role: 'DMF', x: 36, y: 56, zone: 'MID' },
-      { id: 'cdm2', role: 'DMF', x: 64, y: 56, zone: 'MID' },
-      { id: 'lam', role: 'LMF', x: 20, y: 36, zone: 'MID' },
-      { id: 'cam', role: 'AMF', x: 50, y: 34, zone: 'MID' },
-      { id: 'ram', role: 'RMF', x: 80, y: 36, zone: 'MID' },
-      { id: 'st', role: 'CF', x: 50, y: 16, zone: 'FWD' }
-    ]
-  },
-  '4-4-2': {
-    name: '4-4-2 Klassik',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'lb', role: 'LB', x: 16, y: 72, zone: 'DEF' },
-      { id: 'cb1', role: 'CB', x: 38, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 62, y: 74, zone: 'DEF' },
-      { id: 'rb', role: 'RB', x: 84, y: 72, zone: 'DEF' },
-      { id: 'lm', role: 'LMF', x: 16, y: 48, zone: 'MID' },
-      { id: 'cm1', role: 'CMF', x: 38, y: 50, zone: 'MID' },
-      { id: 'cm2', role: 'CMF', x: 62, y: 50, zone: 'MID' },
-      { id: 'rm', role: 'RMF', x: 84, y: 48, zone: 'MID' },
-      { id: 'st1', role: 'CF', x: 36, y: 20, zone: 'FWD' },
-      { id: 'st2', role: 'ST', x: 64, y: 20, zone: 'FWD' }
-    ]
-  },
-  '3-5-2': {
-    name: '3-5-2 Dominant',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'cb1', role: 'CB', x: 25, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 50, y: 76, zone: 'DEF' },
-      { id: 'cb3', role: 'CB', x: 75, y: 74, zone: 'DEF' },
-      { id: 'lm', role: 'LMF', x: 14, y: 48, zone: 'MID' },
-      { id: 'cdm1', role: 'DMF', x: 36, y: 56, zone: 'MID' },
-      { id: 'cam', role: 'AMF', x: 50, y: 40, zone: 'MID' },
-      { id: 'cdm2', role: 'DMF', x: 64, y: 56, zone: 'MID' },
-      { id: 'rm', role: 'RMF', x: 86, y: 48, zone: 'MID' },
-      { id: 'st1', role: 'CF', x: 36, y: 20, zone: 'FWD' },
-      { id: 'st2', role: 'ST', x: 64, y: 20, zone: 'FWD' }
-    ]
-  },
-  '3-4-3': {
-    name: '3-4-3 Yuqori Pressing',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'cb1', role: 'CB', x: 26, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 50, y: 76, zone: 'DEF' },
-      { id: 'cb3', role: 'CB', x: 74, y: 74, zone: 'DEF' },
-      { id: 'lm', role: 'LMF', x: 16, y: 50, zone: 'MID' },
-      { id: 'cm1', role: 'CMF', x: 38, y: 52, zone: 'MID' },
-      { id: 'cm2', role: 'CMF', x: 62, y: 52, zone: 'MID' },
-      { id: 'rm', role: 'RMF', x: 84, y: 50, zone: 'MID' },
-      { id: 'lw', role: 'LWF', x: 20, y: 22, zone: 'FWD' },
-      { id: 'st', role: 'CF', x: 50, y: 16, zone: 'FWD' },
-      { id: 'rw', role: 'RWF', x: 80, y: 22, zone: 'FWD' }
-    ]
-  },
-  '5-3-2': {
-    name: '5-3-2 Mustahkam Himoya',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'lwb', role: 'LWB', x: 12, y: 68, zone: 'DEF' },
-      { id: 'cb1', role: 'CB', x: 30, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 50, y: 76, zone: 'DEF' },
-      { id: 'cb3', role: 'CB', x: 70, y: 74, zone: 'DEF' },
-      { id: 'rwb', role: 'RWB', x: 88, y: 68, zone: 'DEF' },
-      { id: 'cm1', role: 'CMF', x: 30, y: 48, zone: 'MID' },
-      { id: 'cdm', role: 'DMF', x: 50, y: 52, zone: 'MID' },
-      { id: 'cm2', role: 'CMF', x: 70, y: 48, zone: 'MID' },
-      { id: 'st1', role: 'CF', x: 36, y: 20, zone: 'FWD' },
-      { id: 'st2', role: 'ST', x: 64, y: 20, zone: 'FWD' }
-    ]
-  },
-  '4-1-2-1-2': {
-    name: '4-1-2-1-2 Olmos (Diamond)',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'lb', role: 'LB', x: 16, y: 72, zone: 'DEF' },
-      { id: 'cb1', role: 'CB', x: 38, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 62, y: 74, zone: 'DEF' },
-      { id: 'rb', role: 'RB', x: 84, y: 72, zone: 'DEF' },
-      { id: 'cdm', role: 'DMF', x: 50, y: 60, zone: 'MID' },
-      { id: 'lm', role: 'LMF', x: 22, y: 46, zone: 'MID' },
-      { id: 'rm', role: 'RMF', x: 78, y: 46, zone: 'MID' },
-      { id: 'cam', role: 'AMF', x: 50, y: 34, zone: 'MID' },
-      { id: 'st1', role: 'CF', x: 36, y: 18, zone: 'FWD' },
-      { id: 'st2', role: 'ST', x: 64, y: 18, zone: 'FWD' }
-    ]
-  },
-  '4-3-1-2': {
-    name: '4-3-1-2 Tor Markaz',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'lb', role: 'LB', x: 16, y: 72, zone: 'DEF' },
-      { id: 'cb1', role: 'CB', x: 38, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 62, y: 74, zone: 'DEF' },
-      { id: 'rb', role: 'RB', x: 84, y: 72, zone: 'DEF' },
-      { id: 'cm1', role: 'CMF', x: 28, y: 56, zone: 'MID' },
-      { id: 'cm2', role: 'CMF', x: 50, y: 58, zone: 'MID' },
-      { id: 'cm3', role: 'CMF', x: 72, y: 56, zone: 'MID' },
-      { id: 'cam', role: 'AMF', x: 50, y: 36, zone: 'MID' },
-      { id: 'st1', role: 'CF', x: 36, y: 18, zone: 'FWD' },
-      { id: 'st2', role: 'ST', x: 64, y: 18, zone: 'FWD' }
-    ]
-  },
-  '5-2-3': {
-    name: '5-2-3 Qanot Hujum',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'lwb', role: 'LWB', x: 14, y: 68, zone: 'DEF' },
-      { id: 'cb1', role: 'CB', x: 32, y: 75, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 50, y: 77, zone: 'DEF' },
-      { id: 'cb3', role: 'CB', x: 68, y: 75, zone: 'DEF' },
-      { id: 'rwb', role: 'RWB', x: 86, y: 68, zone: 'DEF' },
-      { id: 'cm1', role: 'CMF', x: 38, y: 50, zone: 'MID' },
-      { id: 'cm2', role: 'CMF', x: 62, y: 50, zone: 'MID' },
-      { id: 'lw', role: 'LWF', x: 20, y: 22, zone: 'FWD' },
-      { id: 'st', role: 'CF', x: 50, y: 16, zone: 'FWD' },
-      { id: 'rw', role: 'RWF', x: 80, y: 22, zone: 'FWD' }
-    ]
-  },
-  '4-5-1': {
-    name: '4-5-1 Markaziy Blok',
-    slots: [
-      { id: 'gk', role: 'GK', x: 50, y: 88, zone: 'GK' },
-      { id: 'lb', role: 'LB', x: 16, y: 72, zone: 'DEF' },
-      { id: 'cb1', role: 'CB', x: 38, y: 74, zone: 'DEF' },
-      { id: 'cb2', role: 'CB', x: 62, y: 74, zone: 'DEF' },
-      { id: 'rb', role: 'RB', x: 84, y: 72, zone: 'DEF' },
-      { id: 'lm', role: 'LMF', x: 16, y: 46, zone: 'MID' },
-      { id: 'cm1', role: 'CMF', x: 34, y: 52, zone: 'MID' },
-      { id: 'cdm', role: 'DMF', x: 50, y: 58, zone: 'MID' },
-      { id: 'cm2', role: 'CMF', x: 66, y: 52, zone: 'MID' },
-      { id: 'rm', role: 'RMF', x: 84, y: 46, zone: 'MID' },
-      { id: 'st', role: 'CF', x: 50, y: 18, zone: 'FWD' }
-    ]
-  }
-};
+type PESPlaystyle = 'quick-counter' | 'possession' | 'out-wide' | 'long-ball' | 'press';
 
 export const PitchBoard: React.FC<PitchBoardProps> = ({
   squad,
@@ -216,13 +64,45 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
   const [swapSourceSlot, setSwapSourceSlot] = useState<string | null>(null);
   const [swapSourceBenchPlayer, setSwapSourceBenchPlayer] = useState<Player | null>(null);
 
-  const currentSlots = FORMATION_CONFIGS[formation]?.slots || FORMATION_CONFIGS['4-3-3'].slots;
+  // PES 2026 Features State
+  const [showTacticalZones, setShowTacticalZones] = useState<boolean>(true);
+  const [customPositions, setCustomPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [draggingSlotId, setDraggingSlotId] = useState<string | null>(null);
+  const [teamPlaystyle, setTeamPlaystyle] = useState<PESPlaystyle>('quick-counter');
+  const [attackDefLevel, setAttackDefLevel] = useState<number>(0); // -2 to +2 PES D-Pad Attack/Def balance
 
-  // Calculate team metrics
-  const activeStarters = currentSlots.map(s => squad[s.id]).filter((p): p is Player => p !== null);
+  // Ref for the pitch container to compute exact pointer coordinates
+  const pitchRef = useRef<HTMLDivElement | null>(null);
+  const dragStartRef = useRef<{
+    startX: number;
+    startY: number;
+    initialSlotX: number;
+    initialSlotY: number;
+  } | null>(null);
+
+  // Reset custom positions when formation changes to keep it clean
+  useEffect(() => {
+    setCustomPositions({});
+  }, [formation]);
+
+  const currentConfig = FORMATION_CONFIGS[formation] || FORMATION_CONFIGS['4-3-3'];
+  const currentSlots = currentConfig.slots;
+
+  // Helper to get active coordinate of a slot (either custom dragged or formation default)
+  const getSlotPosition = (slot: SlotDef) => {
+    if (customPositions[slot.id]) {
+      return customPositions[slot.id];
+    }
+    return { x: slot.x, y: slot.y };
+  };
+
+  // Calculate team metrics safely
+  const activeStarters = currentSlots
+    .map(s => squad[s.id])
+    .filter((p): p is Player => Boolean(p));
   const starterCount = activeStarters.length;
   const teamOvr = starterCount
-    ? Math.round(activeStarters.reduce((acc, p) => acc + p.ovr, 0) / starterCount)
+    ? Math.round(activeStarters.reduce((acc, p) => acc + (p?.ovr || 75), 0) / starterCount)
     : 0;
 
   // Chemistry calculation
@@ -231,18 +111,19 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
     let linksScore = 0;
     activeStarters.forEach((p, i) => {
       activeStarters.slice(i + 1).forEach(other => {
-        if (p.nation.name === other.nation.name) linksScore += 4;
-        if (p.club === other.club) linksScore += 6;
-        if (p.league === other.league) linksScore += 2;
+        if (p?.nation?.name && other?.nation?.name && p.nation.name === other.nation.name) linksScore += 4;
+        if (p?.club && other?.club && p.club === other.club) linksScore += 6;
+        if (p?.league && other?.league && p.league === other.league) linksScore += 2;
       });
     });
     chemistry = Math.min(100, Math.round((starterCount / 11) * 60 + (linksScore / 10) * 40));
   }
 
+  // Attack, Mid, Def ratings with Playstyle modifier
   const attackRating = starterCount
     ? Math.round(
         activeStarters.reduce(
-          (acc, p) => acc + (p.family === 'FW' ? p.ovr : p.attrs.sho * 0.7 + p.attrs.pac * 0.3),
+          (acc, p) => acc + (p?.family === 'FW' ? p.ovr : (p?.attrs?.sho || 70) * 0.7 + (p?.attrs?.pac || 70) * 0.3),
           0
         ) / starterCount
       )
@@ -251,7 +132,7 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
   const midRating = starterCount
     ? Math.round(
         activeStarters.reduce(
-          (acc, p) => acc + (p.family === 'MF' ? p.ovr : p.attrs.pas * 0.6 + p.attrs.dri * 0.4),
+          (acc, p) => acc + (p?.family === 'MF' ? p.ovr : (p?.attrs?.pas || 70) * 0.6 + (p?.attrs?.dri || 70) * 0.4),
           0
         ) / starterCount
       )
@@ -261,11 +142,65 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
     ? Math.round(
         activeStarters.reduce(
           (acc, p) =>
-            acc + (p.family === 'DF' || p.family === 'GK' ? p.ovr : p.attrs.def * 0.8),
+            acc + (p?.family === 'DF' || p?.family === 'GK' ? p.ovr : (p?.attrs?.def || 70) * 0.8),
           0
         ) / starterCount
       )
     : 0;
+
+  // --- POINTER DRAG & DROP FOR PES 2026 TACTICAL POSITIONING ---
+  const handleSlotPointerDown = (slotId: string, e: React.PointerEvent) => {
+    // If in swap mode, do not trigger drag
+    if (swapSourceSlot || swapSourceBenchPlayer) return;
+
+    const targetSlot = currentSlots.find(s => s.id === slotId);
+    if (!targetSlot) return;
+
+    const currentPos = getSlotPosition(targetSlot);
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialSlotX: currentPos.x,
+      initialSlotY: currentPos.y
+    };
+    setDraggingSlotId(slotId);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePitchPointerMove = (e: React.PointerEvent) => {
+    if (!draggingSlotId || !dragStartRef.current || !pitchRef.current) return;
+
+    const rect = pitchRef.current.getBoundingClientRect();
+    const deltaX = e.clientX - dragStartRef.current.startX;
+    const deltaY = e.clientY - dragStartRef.current.startY;
+
+    const deltaPercentX = (deltaX / rect.width) * 100;
+    const deltaPercentY = (deltaY / rect.height) * 100;
+
+    const newX = Math.max(10, Math.min(90, dragStartRef.current.initialSlotX + deltaPercentX));
+    const newY = Math.max(10, Math.min(91, dragStartRef.current.initialSlotY + deltaPercentY));
+
+    setCustomPositions(prev => ({
+      ...prev,
+      [draggingSlotId]: { x: Math.round(newX * 10) / 10, y: Math.round(newY * 10) / 10 }
+    }));
+  };
+
+  const handlePitchPointerUp = (e: React.PointerEvent) => {
+    if (draggingSlotId) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+      setDraggingSlotId(null);
+      dragStartRef.current = null;
+    }
+  };
+
+  // Reset custom player coordinates to standard formation
+  const handleResetPositions = () => {
+    sfxClick();
+    setCustomPositions({});
+  };
 
   // Handle Slot Click (either normal or in swap mode)
   const handleSlotClick = (slotId: string) => {
@@ -274,14 +209,12 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
     // If we are currently in Swap Mode from a field slot:
     if (swapSourceSlot) {
       if (swapSourceSlot === slotId) {
-        // Cancel swap
         setSwapSourceSlot(null);
         return;
       }
       if (onSwapPositions) {
         onSwapPositions(swapSourceSlot, slotId);
       }
-      sfxCardFlip(3);
       setSwapSourceSlot(null);
       return;
     }
@@ -291,15 +224,15 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
       if (onSwapBenchPlayer) {
         onSwapBenchPlayer(swapSourceBenchPlayer.id, slotId);
       }
-      sfxCardFlip(3);
       setSwapSourceBenchPlayer(null);
       return;
     }
 
-    // Normal click: if player exists, inspect; else open picker
-    const existing = squad[slotId];
-    if (existing) {
-      setInspectedPlayer(existing);
+    // Normal slot click:
+    const playerInSlot = squad[slotId];
+    if (playerInSlot) {
+      sfxCardFlip();
+      setInspectedPlayer(playerInSlot);
     } else {
       setSelectedSlot(slotId);
       setPickerModalOpen(true);
@@ -307,350 +240,647 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
   };
 
   const handlePickPlayer = (player: Player) => {
-    if (!selectedSlot) return;
-    sfxCardFlip(3);
-    onAssignPlayer(selectedSlot, player);
-    setPickerModalOpen(false);
-    setSelectedSlot(null);
+    if (selectedSlot) {
+      onAssignPlayer(selectedSlot, player);
+      setPickerModalOpen(false);
+      setSelectedSlot(null);
+      sfxClick();
+    }
   };
 
   const handleThemeChangeForPlayer = (theme: CardBackgroundTheme) => {
-    if (!inspectedPlayer || !onUpdatePlayer) return;
-    const updated = { ...inspectedPlayer, cardBackgroundTheme: theme };
-    setInspectedPlayer(updated);
-    onUpdatePlayer(updated);
+    if (inspectedPlayer && onUpdatePlayer) {
+      onUpdatePlayer({ ...inspectedPlayer, cardTheme: theme });
+      setInspectedPlayer(prev => (prev ? { ...prev, cardTheme: theme } : null));
+    }
   };
 
-  const isSwapModeActive = !!swapSourceSlot || !!swapSourceBenchPlayer;
+  // PES Player Condition Helper (⬆️ Ajoyib, ↗️ Yaxshi, ➡️ O'rtacha)
+  const getConditionBadge = (ovr: number, id: string) => {
+    const hash = (id.charCodeAt(0) + id.charCodeAt(id.length - 1)) % 3;
+    if (hash === 0) {
+      return { icon: '⬆️', label: 'Ajoyib forma', color: 'text-cyan-400 bg-cyan-950/80 border-cyan-500/40' };
+    }
+    if (hash === 1) {
+      return { icon: '↗️', label: 'Yaxshi', color: 'text-emerald-400 bg-emerald-950/80 border-emerald-500/40' };
+    }
+    return { icon: '➡️', label: 'Barqaror', color: 'text-amber-400 bg-amber-950/80 border-amber-500/40' };
+  };
 
   return (
-    <div className="w-full flex flex-col gap-5">
-      {/* Top HUD: Team Metrics Bar */}
-      <div className="w-full grid grid-cols-2 sm:grid-cols-6 gap-3 p-4 rounded-2xl bg-slate-900/80 border border-white/10 backdrop-blur-xl shadow-2xl">
-        <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/5">
-          <span className="text-2xl font-black text-amber-400 drop-shadow">{teamOvr}</span>
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Jamoa OVR</span>
-        </div>
-        <div
-          className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/5"
-          title="Futbolchilar klubi, ligasi va millatining o‘zaro mosligi hisobiga jamoaviy tushunish darajasi"
-        >
-          <span className="text-2xl font-black text-cyan-400 drop-shadow">{chemistry}</span>
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Hamjihatlik (100)</span>
-        </div>
-        <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/5">
-          <span className="text-2xl font-black text-red-400 drop-shadow">{attackRating}</span>
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Hujum</span>
-        </div>
-        <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/5">
-          <span className="text-2xl font-black text-emerald-400 drop-shadow">{midRating}</span>
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Markaz</span>
-        </div>
-        <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/5">
-          <span className="text-2xl font-black text-blue-400 drop-shadow">{defRating}</span>
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Himoya</span>
-        </div>
-        <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/5">
-          <span className="text-2xl font-black text-purple-300 drop-shadow">{starterCount}/11</span>
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tarkib</span>
-        </div>
-      </div>
+    <div className="w-full flex flex-col gap-4 max-w-7xl mx-auto pb-12">
+      {/* Top Banner: Metrics & PES Tactical Control Bar */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
+        {/* Rating & Chemistry Dashboard */}
+        <div className="lg:col-span-8 p-4 rounded-3xl bg-slate-900/90 border border-white/10 backdrop-blur-xl flex flex-wrap items-center justify-between gap-4 shadow-xl">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-300 p-0.5 shadow-lg shadow-amber-500/20">
+                <div className="w-full h-full bg-slate-950 rounded-[14px] flex flex-col items-center justify-center">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-amber-400">OVR</span>
+                  <span className="text-xl font-black text-white">{teamOvr || '--'}</span>
+                </div>
+              </div>
+              <div>
+                <h2 className="font-black text-sm tracking-wide text-white">Jamoa Reytingi</h2>
+                <p className="text-xs text-slate-400">
+                  {starterCount}/11 Maydonda • {starterCount === 11 ? 'To‘liq tarkib' : `${11 - starterCount} bo‘sh joy`}
+                </p>
+              </div>
+            </div>
 
-      {/* Control Actions & Formation selector */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900/70 border border-white/10 backdrop-blur-md">
-        {/* Formation dropdown pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
-          <span className="text-xs font-black text-cyan-400 uppercase tracking-wider mr-1 shrink-0">
-            Taktika:
-          </span>
-          {(Object.keys(FORMATION_CONFIGS) as FormationKey[]).map(fk => (
-            <button
-              key={fk}
-              onClick={() => {
-                sfxClick();
-                onFormationChange(fk);
-              }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all shrink-0 cursor-pointer ${
-                formation === fk
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md shadow-cyan-500/30'
-                  : 'bg-white/[0.06] text-slate-300 hover:bg-white/10 border border-white/5'
-              }`}
-            >
-              {fk}
-            </button>
-          ))}
-        </div>
+            {/* Chemistry Ring */}
+            <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+              <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-500 p-0.5 shadow-lg shadow-cyan-500/20">
+                <div className="w-full h-full bg-slate-950 rounded-[14px] flex flex-col items-center justify-center">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-cyan-400">KIMYO</span>
+                  <span className="text-xl font-black text-white">{chemistry}</span>
+                </div>
+              </div>
+              <div className="hidden sm:block">
+                <span className="text-xs font-bold text-slate-300">Bog‘lanish</span>
+                <p className="text-[11px] text-slate-400">Klub va millat uyg‘unligi</p>
+              </div>
+            </div>
+          </div>
 
-        {/* Action Controls: Ergonomic Swap Indicator & Clear */}
-        <div className="flex items-center gap-2">
-          {isSwapModeActive && (
-            <button
-              onClick={() => {
-                sfxClick();
-                setSwapSourceSlot(null);
-                setSwapSourceBenchPlayer(null);
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500/30 transition-all cursor-pointer animate-pulse"
-            >
-              <Repeat className="w-3.5 h-3.5" />
-              <span>Almashtirishni bekor qilish</span>
-            </button>
-          )}
+          {/* Sector Ratings: ATT / MID / DEF */}
+          <div className="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-2xl border border-white/5">
+            <div className="text-center">
+              <span className="text-[10px] uppercase font-bold text-red-400">HUJ</span>
+              <p className="text-sm font-black text-white">{attackRating}</p>
+            </div>
+            <div className="w-px h-6 bg-white/10" />
+            <div className="text-center">
+              <span className="text-[10px] uppercase font-bold text-emerald-400">YAR</span>
+              <p className="text-sm font-black text-white">{midRating}</p>
+            </div>
+            <div className="w-px h-6 bg-white/10" />
+            <div className="text-center">
+              <span className="text-[10px] uppercase font-bold text-blue-400">HIM</span>
+              <p className="text-sm font-black text-white">{defRating}</p>
+            </div>
+          </div>
 
+          {/* Clear Button */}
           <button
             onClick={() => {
               sfxClick();
               onClearSquad();
             }}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 transition-all cursor-pointer"
-            title="Boshlang‘ich 11 talikni tozalash"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/20 text-xs font-bold transition-colors cursor-pointer"
+            title="Tarkibni tozalash"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span>Tozalash</span>
+            <span className="hidden sm:inline">Tozalash</span>
           </button>
         </div>
-      </div>
 
-      {/* Swap Mode Info Banner if Active */}
-      {isSwapModeActive && (
-        <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-between text-cyan-200 text-xs">
-          <div className="flex items-center gap-2">
-            <ArrowRightLeft className="w-4 h-4 text-cyan-400 animate-spin" />
-            <span>
-              {swapSourceSlot && (
-                <>
-                  Maydondagi <b>{squad[swapSourceSlot]?.name}</b> o‘rniga joylashtirish uchun boshqa istalgan pozitsiyani yoki zaxiradagi futbolchini bosing!
-                </>
-              )}
-              {swapSourceBenchPlayer && (
-                <>
-                  Zaxiradagi <b>{swapSourceBenchPlayer.name}</b> uchun maydondagi istalgan pozitsiyani tanlang!
-                </>
-              )}
+        {/* PES 2026 Attack / Defense Balance Level */}
+        <div className="lg:col-span-4 p-4 rounded-3xl bg-slate-900/90 border border-white/10 backdrop-blur-xl flex flex-col justify-between gap-2 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sliders className="w-4 h-4 text-cyan-400" />
+              <span className="font-black text-xs uppercase tracking-wider text-white">PES 2026 Taktik Balans</span>
+            </div>
+            <span
+              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                attackDefLevel === 2
+                  ? 'bg-red-500/30 text-red-300 border-red-500/50'
+                  : attackDefLevel === 1
+                  ? 'bg-amber-500/30 text-amber-300 border-amber-500/50'
+                  : attackDefLevel === -1
+                  ? 'bg-blue-500/30 text-blue-300 border-blue-500/50'
+                  : attackDefLevel === -2
+                  ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/50'
+                  : 'bg-slate-700/30 text-slate-300 border-slate-600/50'
+              }`}
+            >
+              {attackDefLevel === 2
+                ? 'Hamma Hujumda! (+2)'
+                : attackDefLevel === 1
+                ? 'Hujumkor (+1)'
+                : attackDefLevel === -1
+                ? 'Himoyaviy (-1)'
+                : attackDefLevel === -2
+                ? 'Ultra Himoya (-2)'
+                : 'Muvozanatli (0)'}
             </span>
           </div>
-          <button
-            onClick={() => {
-              setSwapSourceSlot(null);
-              setSwapSourceBenchPlayer(null);
-            }}
-            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
-      {/* Main Tactical Pitch Stage */}
-      <div className="relative w-full aspect-[1/1.3] max-w-[640px] mx-auto rounded-3xl overflow-hidden border-2 border-emerald-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_0_80px_rgba(6,78,59,0.3)] bg-gradient-to-b from-[#06381e] via-[#052b17] to-[#041c0f]">
-        {/* Lawn mowing grass stripes */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-40"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 48px, transparent 48px, transparent 96px)'
-          }}
-        />
-
-        {/* Floodlight beams */}
-        <div className="absolute -top-10 -left-10 w-48 h-48 rounded-full bg-cyan-400/10 filter blur-3xl pointer-events-none" />
-        <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-emerald-400/10 filter blur-3xl pointer-events-none" />
-
-        {/* Pitch Tactical Markings (SVG overlay) */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-white/40" strokeWidth="2" fill="none">
-          {/* Border */}
-          <rect x="18" y="18" width="calc(100% - 36px)" height="calc(100% - 36px)" rx="16" />
-          {/* Halfway line */}
-          <line x1="18" y1="50%" x2="calc(100% - 18px)" y2="50%" />
-          {/* Center circle */}
-          <circle cx="50%" cy="50%" r="48" />
-          <circle cx="50%" cy="50%" r="3" fill="rgba(255,255,255,0.7)" />
-
-          {/* Top Penalty Box */}
-          <rect x="25%" y="18" width="50%" height="15%" />
-          <rect x="37%" y="18" width="26%" height="6%" />
-          <circle cx="50%" cy="13%" r="2" fill="rgba(255,255,255,0.7)" />
-
-          {/* Bottom Penalty Box */}
-          <rect x="25%" y="calc(85% - 18px)" width="50%" height="15%" />
-          <rect x="37%" y="calc(94% - 18px)" width="26%" height="6%" />
-          <circle cx="50%" cy="87%" r="2" fill="rgba(255,255,255,0.7)" />
-
-          {/* Corner arcs */}
-          <path d="M 18 34 A 16 16 0 0 0 34 18" />
-          <path d="M calc(100% - 34px) 18 A 16 16 0 0 0 calc(100% - 18px) 34" />
-          <path d="M 18 calc(100% - 34px) A 16 16 0 0 0 34 calc(100% - 18px)" />
-          <path d="M calc(100% - 34px) calc(100% - 18px) A 16 16 0 0 0 calc(100% - 18px) calc(100% - 34px)" />
-        </svg>
-
-        {/* Player Pitch Slots */}
-        {currentSlots.map(slot => {
-          const player = squad[slot.id];
-          const isMatch = player
-            ? player.role === slot.role ||
-              (player.naturalPositions && player.naturalPositions.includes(slot.role))
-            : true;
-
-          const isSelectedForSwap = swapSourceSlot === slot.id;
-          const isSwapTargetCandidate =
-            isSwapModeActive && (swapSourceSlot !== slot.id || swapSourceBenchPlayer);
-
-          return (
-            <div
-              key={slot.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
-              style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-            >
+          {/* 5-step PES Level Selector */}
+          <div className="grid grid-cols-5 gap-1.5 bg-black/40 p-1.5 rounded-2xl border border-white/5">
+            {[-2, -1, 0, 1, 2].map(level => (
               <button
-                onClick={() => handleSlotClick(slot.id)}
-                className={`group relative flex flex-col items-center justify-center rounded-2xl p-1.5 transition-all duration-200 cursor-pointer ${
-                  isSelectedForSwap
-                    ? 'w-18 h-20 sm:w-22 sm:h-24 bg-cyan-950/90 border-2 border-cyan-400 ring-4 ring-cyan-400/50 shadow-2xl scale-110'
-                    : isSwapTargetCandidate
-                    ? 'w-16 h-18 sm:w-20 sm:h-22 bg-slate-950/85 hover:bg-slate-900 border-2 border-dashed border-cyan-300 ring-2 ring-cyan-400/30 hover:scale-105'
-                    : player
-                    ? `w-16 h-18 sm:w-20 sm:h-22 bg-slate-950/85 hover:bg-slate-900 border ${
-                        isMatch
-                          ? 'border-emerald-400/40 hover:border-emerald-400 shadow-xl shadow-black/80'
-                          : 'border-amber-400/60 hover:border-amber-400 shadow-xl shadow-amber-950/40'
-                      } hover:scale-105`
-                    : 'w-14 h-16 sm:w-16 sm:h-18 bg-white/10 hover:bg-white/20 border-2 border-dashed border-white/40 hover:border-cyan-300'
-                }`}
-                title={
-                  player && !isMatch
-                    ? `${player.name} (${player.role}) bu ${slot.role} pozitsiyasiga to‘liq mos emas`
-                    : undefined
-                }
-              >
-                {isSwapTargetCandidate && (
-                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded-full bg-cyan-400 text-slate-950 font-black text-[8px] whitespace-nowrap shadow z-30">
-                    Almashtirish
-                  </span>
-                )}
-
-                {player ? (
-                  <>
-                    <div className="relative">
-                      <PlayerAvatar avatar={player.avatar} size={36} />
-                      <span className="absolute -bottom-1 -right-1 text-[10px] leading-none">
-                        {player.nation.flag}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="font-black text-xs text-amber-300 leading-none">
-                        {player.ovr}
-                      </span>
-                      <span
-                        className={`font-black text-[9px] leading-none ${
-                          isMatch ? 'text-cyan-300' : 'text-amber-400'
-                        }`}
-                      >
-                        {player.role}
-                      </span>
-                    </div>
-                    <span className="text-[9px] font-bold text-white truncate max-w-[62px] mt-0.5 leading-none">
-                      {player.name.split(' ').pop()}
-                    </span>
-                    {!isMatch && (
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 text-slate-950 text-[9px] font-black flex items-center justify-center shadow">
-                        !
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <span className="text-lg text-white/70 group-hover:text-cyan-300 group-hover:scale-125 transition-transform">
-                      +
-                    </span>
-                    <span className="text-[10px] font-black text-white/80 group-hover:text-cyan-300 tracking-wider">
-                      {slot.role}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Bench (Zaxira) Section */}
-      <div className="w-full p-4 rounded-3xl bg-slate-900/80 border border-white/10 backdrop-blur-xl flex flex-col gap-3">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2 text-sm font-black text-white">
-            <Users className="w-4 h-4 text-cyan-400" />
-            <span>Zaxira O‘yinchilari (Bench & Reserves)</span>
-          </div>
-          <span className="text-xs font-bold text-slate-400">{bench.length} nafar zaxirada</span>
-        </div>
-
-        {/* Bench list */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
-          {bench.map((player, idx) => {
-            const isSelectedBench = swapSourceBenchPlayer?.id === player.id;
-            return (
-              <div
-                key={`bench_${player.id}_${idx}`}
-                className={`relative flex flex-col gap-1.5 p-2.5 rounded-2xl transition-all cursor-pointer ${
-                  isSelectedBench
-                    ? 'bg-cyan-950/80 border-2 border-cyan-400 ring-2 ring-cyan-400/40 shadow-lg'
-                    : 'bg-white/[0.05] hover:bg-white/[0.1] border border-white/10'
-                }`}
+                key={level}
                 onClick={() => {
                   sfxClick();
-                  if (swapSourceSlot) {
-                    // Swap field player with this bench player!
-                    if (onSwapBenchPlayer) {
-                      onSwapBenchPlayer(player.id, swapSourceSlot);
-                    }
-                    sfxCardFlip(3);
-                    setSwapSourceSlot(null);
-                    return;
-                  }
-                  setInspectedPlayer(player);
+                  setAttackDefLevel(level);
                 }}
+                className={`py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  attackDefLevel === level
+                    ? level > 0
+                      ? 'bg-gradient-to-r from-red-600 to-amber-500 text-white shadow-lg shadow-red-500/30 scale-105'
+                      : level < 0
+                      ? 'bg-gradient-to-r from-blue-700 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105'
+                      : 'bg-slate-200 text-slate-950 font-black scale-105'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
               >
-                <div className="flex items-center gap-2">
-                  <PlayerAvatar avatar={player.avatar} size={30} />
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className="font-black text-xs text-amber-400">{player.ovr}</span>
-                      <span className="text-[9px] font-bold text-cyan-300">{player.role}</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-white truncate max-w-[70px]">
-                      {player.name.split(' ').pop()}
-                    </span>
-                  </div>
-                </div>
+                {level > 0 ? `+${level}` : level}
+              </button>
+            ))}
+          </div>
 
-                {/* Quick Swap/Action Button */}
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    sfxClick();
-                    if (swapSourceBenchPlayer?.id === player.id) {
-                      setSwapSourceBenchPlayer(null);
-                    } else {
-                      setSwapSourceBenchPlayer(player);
-                      setSwapSourceSlot(null);
-                    }
-                  }}
-                  className={`w-full py-1 px-1.5 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all ${
-                    isSelectedBench
-                      ? 'bg-cyan-400 text-slate-950'
-                      : 'bg-white/[0.08] hover:bg-cyan-500/20 text-cyan-300 border border-white/5'
-                  }`}
-                  title="Maydondagi o‘yinchi bilan almashtirish"
-                >
-                  <Repeat className="w-3 h-3" />
-                  <span>{isSelectedBench ? 'Tanlandi' : 'Almashtirish'}</span>
-                </button>
-              </div>
+          <p className="text-[10px] text-slate-400 text-center">
+            {attackDefLevel > 0
+              ? 'Markaziy himoyachilar ham raqib jarima maydoniga ko‘tariladi'
+              : attackDefLevel < 0
+              ? 'Tarkib o‘z darvozasi oldida zich himoyaga chekinadi'
+              : 'Standart taktik tartib va barqaror pozitsion o‘yin'}
+          </p>
+        </div>
+      </div>
+
+      {/* Formation Selector & PES Tactical Controls Bar */}
+      <div className="p-4 rounded-3xl bg-slate-900/80 border border-white/10 backdrop-blur-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-lg">
+        {/* Horizontal Formations Strip */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          {(Object.keys(FORMATION_CONFIGS) as FormationKey[]).map(fk => {
+            const conf = FORMATION_CONFIGS[fk];
+            const isSelected = formation === fk;
+            return (
+              <button
+                key={fk}
+                onClick={() => {
+                  sfxClick();
+                  onFormationChange(fk);
+                }}
+                className={`px-3 py-2 rounded-2xl text-xs font-black whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/25 scale-[1.02]'
+                    : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/5'
+                }`}
+              >
+                <span>{fk}</span>
+                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-ping" />}
+              </button>
             );
           })}
         </div>
+
+        {/* PES Controls: Toggle Zones & Reset Drag */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              sfxClick();
+              setShowTacticalZones(prev => !prev);
+            }}
+            className={`px-3 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer border ${
+              showTacticalZones
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
+                : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+            }`}
+            title="PES 2026 Taktik Zonalari"
+          >
+            {showTacticalZones ? <Eye className="w-3.5 h-3.5 text-cyan-400" /> : <EyeOff className="w-3.5 h-3.5" />}
+            <span>PES Zonalar</span>
+          </button>
+
+          {Object.keys(customPositions).length > 0 && (
+            <button
+              onClick={handleResetPositions}
+              className="px-3 py-2 rounded-2xl text-xs font-black flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition-all cursor-pointer animate-pulse"
+              title="O‘yinchilarni standart joylashuviga qaytarish"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Standart Joylashuv</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Player Inspection Modal / Drawer */}
+      {/* SWAP MODE BANNER (When active) */}
+      <AnimatePresence>
+        {(swapSourceSlot || swapSourceBenchPlayer) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border border-amber-500/40 text-amber-200 flex items-center justify-between shadow-lg shadow-amber-500/10"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center animate-spin">
+                <Repeat className="w-4 h-4 text-amber-400" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-white">
+                  {swapSourceBenchPlayer
+                    ? `Zaxiradagi ${swapSourceBenchPlayer.name} uchun maydondagi o‘yinchini tanlang`
+                    : `Pozitsiyani almashtirish uchun maydondagi ikkinchi o‘yinchini bosing`}
+                </p>
+                <p className="text-[10px] text-amber-300">
+                  Kerakli katakchani bosishingiz bilan joylar avtomatik almashadi
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setSwapSourceSlot(null);
+                setSwapSourceBenchPlayer(null);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors cursor-pointer"
+            >
+              Bekor qilish
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MAIN PES 2026 TACTICAL PITCH */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+        <div className="xl:col-span-8 flex flex-col gap-2">
+          <div
+            ref={pitchRef}
+            onPointerMove={handlePitchPointerMove}
+            onPointerUp={handlePitchPointerUp}
+            className="relative w-full aspect-[1/1.38] sm:aspect-[1/1.32] md:aspect-[1/1.25] rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-800 bg-[#0c3b1a] select-none touch-none cursor-default"
+          >
+            {/* Realistic Stadium Grass Texture with PES Emerald Stripes */}
+            <div className="absolute inset-0 bg-[repeating-linear-gradient(to_bottom,#0e451f,#0e451f_9.09%,#0c3d1b_9.09%,#0c3d1b_18.18%)]" />
+
+            {/* Stadium Pitch Floodlight Lighting Glows */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,255,255,0.08)_0%,transparent_75%)] pointer-events-none" />
+
+            {/* Official Football Pitch Markings (SVG) */}
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none stroke-white/40 fill-none"
+              strokeWidth="2"
+            >
+              {/* Boundary Outer Line */}
+              <rect x="5%" y="4%" width="90%" height="92%" rx="10" />
+
+              {/* Halfway Line */}
+              <line x1="5%" y1="50%" x2="95%" y2="50%" />
+
+              {/* Center Circle & Spot */}
+              <circle cx="50%" cy="50%" r="13%" />
+              <circle cx="50%" cy="50%" r="2" fill="white" />
+
+              {/* Top Penalty Box (Opponent End) */}
+              <rect x="25%" y="4%" width="50%" height="16%" />
+              <rect x="36%" y="4%" width="28%" height="6%" />
+              <circle cx="50%" cy="14%" r="2" fill="white" />
+              <path d="M 40% 20% A 12% 12% 0 0 0 60% 20%" />
+
+              {/* Bottom Penalty Box (My Team End) */}
+              <rect x="25%" y="80%" width="50%" height="16%" />
+              <rect x="36%" y="90%" width="28%" height="6%" />
+              <circle cx="50%" cy="86%" r="2" fill="white" />
+              <path d="M 40% 80% A 12% 12% 0 0 1 60% 80%" />
+
+              {/* Corner Arcs */}
+              <path d="M 5% 7% A 3% 3% 0 0 0 8% 4%" />
+              <path d="M 95% 7% A 3% 3% 0 0 1 92% 4%" />
+              <path d="M 5% 93% A 3% 3% 0 0 1 8% 96%" />
+              <path d="M 95% 93% A 3% 3% 0 0 0 92% 96%" />
+            </svg>
+
+            {/* PES 2026 TACTICAL ZONES OVERLAY */}
+            {showTacticalZones && (
+              <div className="absolute inset-0 pointer-events-none">
+                {/* Horizontal Tactical Sectors */}
+                {/* 1. Hujum Zonasi (FWD Zone - 0% to 34%) */}
+                <div className="absolute top-[4%] left-[5%] right-[5%] h-[30%] border-b-2 border-dashed border-red-400/40 bg-red-500/[0.04]">
+                  <div className="absolute top-2 left-3 px-2 py-0.5 rounded-md bg-red-500/20 text-red-300 border border-red-500/30 text-[9px] font-black uppercase tracking-wider backdrop-blur-sm">
+                    ⚡ Hujum Zonasi (FWD)
+                  </div>
+                </div>
+
+                {/* 2. Markaziy Maydon Zonasi (MF Zone - 34% to 65%) */}
+                <div className="absolute top-[34%] left-[5%] right-[5%] h-[31%] border-b-2 border-dashed border-emerald-400/40 bg-emerald-500/[0.04]">
+                  <div className="absolute top-2 left-3 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider backdrop-blur-sm">
+                    🎯 Markaziy Maydon (MF)
+                  </div>
+                </div>
+
+                {/* 3. Himoya Zonasi (DF Zone - 65% to 96%) */}
+                <div className="absolute top-[65%] left-[5%] right-[5%] bottom-[4%] bg-blue-500/[0.04]">
+                  <div className="absolute top-2 left-3 px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[9px] font-black uppercase tracking-wider backdrop-blur-sm">
+                    🛡️ Himoya Zonasi (DF)
+                  </div>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[8px] font-black uppercase">
+                    Darvozabon (GK)
+                  </div>
+                </div>
+
+                {/* Vertical Tactical 5-Corridors (PES / Guardiola Pitch Matrix) */}
+                <div className="absolute inset-0 flex justify-between px-[5%]">
+                  {/* Left Flank (0-22%) */}
+                  <div className="w-[20%] h-full border-r border-dashed border-white/10" />
+                  {/* Left Half-Space */}
+                  <div className="w-[18%] h-full border-r border-dashed border-white/10" />
+                  {/* Central Corridor */}
+                  <div className="w-[24%] h-full border-r border-dashed border-white/10" />
+                  {/* Right Half-Space */}
+                  <div className="w-[18%] h-full border-r border-dashed border-white/10" />
+                  {/* Right Flank */}
+                  <div className="w-[20%] h-full" />
+                </div>
+              </div>
+            )}
+
+            {/* PLAYER SLOTS ON PITCH */}
+            {currentSlots.map(slot => {
+              const player = squad[slot.id];
+              const pos = getSlotPosition(slot);
+              const isDragging = draggingSlotId === slot.id;
+              const isSwapTarget = swapSourceSlot === slot.id;
+
+              // Calculate dynamic PES role at current coordinates
+              const dynamicEval = determineRoleFromCoordinates(pos.x, pos.y);
+              const displayRole = dynamicEval.role;
+
+              // Condition arrow
+              const condition = player ? getConditionBadge(player.ovr, player.id) : null;
+
+              return (
+                <div
+                  key={slot.id}
+                  style={{
+                    left: `${pos.x}%`,
+                    top: `${pos.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: isDragging ? 40 : 20
+                  }}
+                  className="absolute cursor-pointer transition-transform duration-75"
+                >
+                  {/* Outer Glow / Drag Active Ring */}
+                  {isDragging && (
+                    <div className="absolute -inset-4 rounded-full border-2 border-cyan-400/80 animate-ping pointer-events-none" />
+                  )}
+
+                  {/* Slot Token Container */}
+                  <motion.div
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`relative flex flex-col items-center group ${
+                      isSwapTarget ? 'ring-4 ring-amber-400 rounded-2xl animate-pulse' : ''
+                    }`}
+                  >
+                    {/* Drag Handle (PES 2026 Move Trigger) */}
+                    <div
+                      onPointerDown={e => {
+                        e.stopPropagation();
+                        handleSlotPointerDown(slot.id, e);
+                      }}
+                      className="absolute -top-3.5 -right-3.5 z-30 w-7 h-7 rounded-full bg-slate-900/95 border border-cyan-400/60 flex items-center justify-center text-cyan-300 shadow-md hover:bg-cyan-500 hover:text-slate-950 transition-colors cursor-grab active:cursor-grabbing"
+                      title="Ushlab surish (Pozitsiyani PES 2026 kabi o‘zgartirish)"
+                    >
+                      <Move className="w-3.5 h-3.5" />
+                    </div>
+
+                    {/* Condition Arrow Badge */}
+                    {player && condition && (
+                      <div
+                        className={`absolute -top-3.5 -left-3.5 z-30 px-1 py-0.5 rounded-full border text-[10px] font-black shadow-md ${condition.color}`}
+                        title={condition.label}
+                      >
+                        {condition.icon}
+                      </div>
+                    )}
+
+                    {/* Slot Token Content */}
+                    <div
+                      onClick={() => handleSlotClick(slot.id)}
+                      className={`relative w-14 sm:w-16 md:w-18 h-17 sm:h-20 md:h-22 rounded-2xl p-1 flex flex-col items-center justify-between shadow-2xl transition-all ${
+                        player
+                          ? 'bg-slate-950/95 border-2 border-white/20 hover:border-cyan-400'
+                          : 'bg-black/60 border-2 border-dashed border-white/30 hover:border-cyan-400/80'
+                      }`}
+                    >
+                      {player ? (
+                        <>
+                          {/* Role Tag & Rating */}
+                          <div className="w-full flex items-center justify-between px-1">
+                            <span
+                              className={`text-[9px] font-black uppercase px-1 rounded ${
+                                slot.zone === 'FWD'
+                                  ? 'bg-red-500/30 text-red-300'
+                                  : slot.zone === 'MID'
+                                  ? 'bg-emerald-500/30 text-emerald-300'
+                                  : slot.zone === 'DEF'
+                                  ? 'bg-blue-500/30 text-blue-300'
+                                  : 'bg-amber-500/30 text-amber-300'
+                              }`}
+                            >
+                              {displayRole}
+                            </span>
+                            <span className="text-[10px] font-black text-amber-400">{player.ovr}</span>
+                          </div>
+
+                          {/* Player Avatar */}
+                          <div className="relative my-auto">
+                            <PlayerAvatar avatar={player.avatar} size={38} />
+                            {player.nation?.flag && (
+                              <span className="absolute -bottom-1 -right-1 text-[11px] drop-shadow">
+                                {player.nation.flag}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Player Name */}
+                          <div className="w-full text-center truncate px-0.5">
+                            <span className="text-[10px] font-black text-white tracking-tight truncate block">
+                              {player.name.split(' ').pop()}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                          <span className="text-xs font-black text-cyan-300">{displayRole}</span>
+                          <span className="text-[16px] text-white/50">+</span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase">Tanlash</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Coordinates Crosshair when dragging */}
+                    {isDragging && (
+                      <div className="absolute top-full mt-1.5 px-2 py-0.5 rounded-lg bg-black/90 border border-cyan-400 text-cyan-300 text-[10px] font-black whitespace-nowrap z-50">
+                        {displayRole} ({Math.round(pos.x)}%, {Math.round(pos.y)}%)
+                      </div>
+                    )}
+                  </motion.div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Quick Help / PES Hints */}
+          <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 px-2 py-1">
+            <span>💡 Har qanday futbolchini burchakdagi ✥ tugmachasi orqali maydon bo‘ylab erkin surishingiz mumkin</span>
+            <span className="text-cyan-400 font-bold">PES 2026 Game Plan Engine</span>
+          </div>
+        </div>
+
+        {/* RIGHT SIDEBAR: Bench, Reserves & PES Playstyle Tactics */}
+        <div className="xl:col-span-4 flex flex-col gap-4">
+          {/* PES 2026 Playstyles Selector */}
+          <div className="p-4 rounded-3xl bg-slate-900/90 border border-white/10 backdrop-blur-xl flex flex-col gap-3 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Compass className="w-4 h-4 text-cyan-400" />
+                <h3 className="font-black text-sm text-white">PES O‘yin Uslubi (Playstyle)</h3>
+              </div>
+              <span className="text-[10px] font-black uppercase text-cyan-300 px-2 py-0.5 rounded-md bg-cyan-500/20">
+                Taktika
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              {[
+                {
+                  id: 'quick-counter',
+                  name: 'Tezkor qarshi hujum (Quick Counter)',
+                  desc: 'To‘pni oliboq vingerlar sprint qiladi va forvardga pas beriladi',
+                  icon: Zap,
+                  color: 'from-amber-500 to-orange-500'
+                },
+                {
+                  id: 'possession',
+                  name: 'To‘p nazorati (Possession Game)',
+                  desc: 'Qisqa uzatmalar, markaziy ustunlik va bo‘sh zonalarni ochish',
+                  icon: Target,
+                  color: 'from-cyan-500 to-blue-500'
+                },
+                {
+                  id: 'out-wide',
+                  name: 'Qanot orqali yorib o‘tish (Out Wide)',
+                  desc: 'Qanot himoyachilari oldinga chiqadi va jarimaga kross oshiradi',
+                  icon: Flame,
+                  color: 'from-emerald-500 to-teal-500'
+                },
+                {
+                  id: 'press',
+                  name: 'Yuqori Pressing (All-out Press)',
+                  desc: 'Raqib maydonida agressiv bosim o‘tkazib xatoga majbur qilish',
+                  icon: Shield,
+                  color: 'from-red-500 to-pink-500'
+                }
+              ].map(style => {
+                const isSelected = teamPlaystyle === style.id;
+                const IconComponent = style.icon;
+                return (
+                  <button
+                    key={style.id}
+                    onClick={() => {
+                      sfxClick();
+                      setTeamPlaystyle(style.id as PESPlaystyle);
+                    }}
+                    className={`p-3 rounded-2xl text-left border transition-all cursor-pointer flex items-start gap-3 ${
+                      isSelected
+                        ? 'bg-white/10 border-cyan-400 shadow-md shadow-cyan-500/10'
+                        : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.06] hover:border-white/10'
+                    }`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-xl bg-gradient-to-tr ${style.color} flex items-center justify-center shrink-0 shadow-sm`}
+                    >
+                      <IconComponent className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-white truncate">{style.name}</span>
+                        {isSelected && <span className="text-[10px] text-cyan-400 font-black">✓ Faol</span>}
+                      </div>
+                      <p className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">{style.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* BENCH (Zaxira O‘yinchilari) */}
+          <div className="p-4 rounded-3xl bg-slate-900/90 border border-white/10 backdrop-blur-xl flex flex-col gap-3 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-cyan-400" />
+                <h3 className="font-black text-sm text-white">Zaxira O‘yinchilari ({bench.length})</h3>
+              </div>
+              <span className="text-[10px] text-slate-400">Maydonga tushirish uchun bosing</span>
+            </div>
+
+            {bench.length === 0 ? (
+              <div className="p-6 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-center">
+                <p className="text-xs text-slate-400">Zaxirada o‘yinchi mavjud emas</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                {bench.map(player => {
+                  const isSelectedBench = swapSourceBenchPlayer?.id === player.id;
+                  return (
+                    <div
+                      key={`bench_${player.id}`}
+                      className={`p-2 rounded-2xl border transition-all flex items-center justify-between gap-2 ${
+                        isSelectedBench
+                          ? 'bg-amber-500/20 border-amber-400 shadow-md shadow-amber-500/20'
+                          : 'bg-white/[0.04] border-white/10 hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <div
+                        onClick={() => {
+                          sfxCardFlip();
+                          setInspectedPlayer(player);
+                        }}
+                        className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
+                      >
+                        <PlayerAvatar avatar={player.avatar} size={34} />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-xs text-white truncate">{player.name}</span>
+                            <span className="text-[10px] font-black text-amber-400">{player.ovr}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                            <span className="font-bold text-cyan-400">{player.role}</span>
+                            <span>•</span>
+                            <span className="truncate">{player.club}</span>
+                            <span>{player.nation?.flag}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quick Swap Button */}
+                      <button
+                        onClick={() => {
+                          sfxClick();
+                          if (isSelectedBench) {
+                            setSwapSourceBenchPlayer(null);
+                          } else {
+                            setSwapSourceBenchPlayer(player);
+                            setSwapSourceSlot(null);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer shrink-0 flex items-center gap-1 ${
+                          isSelectedBench
+                            ? 'bg-amber-500 text-slate-950'
+                            : 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30'
+                        }`}
+                      >
+                        <ArrowRightLeft className="w-3 h-3" />
+                        <span>{isSelectedBench ? 'Tanlandi' : 'Tushirish'}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* PLAYER INSPECTION MODAL */}
       <AnimatePresence>
         {inspectedPlayer && (
           <motion.div
@@ -704,7 +934,6 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
 
               {/* Actions: Swap or Remove */}
               <div className="w-full flex flex-col gap-2 mt-1">
-                {/* Check if player is currently in starting 11 */}
                 {(Object.entries(squad) as [string, Player | null][]).some(([_, p]) => p?.id === inspectedPlayer.id) ? (
                   <>
                     <button
@@ -758,7 +987,7 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Player Picker Modal (assign player to empty slot) */}
+      {/* PLAYER PICKER MODAL (Assign player to empty slot) */}
       <AnimatePresence>
         {pickerModalOpen && selectedSlot && (
           <motion.div
@@ -810,7 +1039,7 @@ export const PitchBoard: React.FC<PitchBoardProps> = ({
                         <span className="text-cyan-400 font-bold">{player.role}</span>
                         <span>•</span>
                         <span className="truncate">{player.club}</span>
-                        <span>{player.nation.flag}</span>
+                        <span>{player.nation?.flag}</span>
                       </div>
                     </div>
                   </button>

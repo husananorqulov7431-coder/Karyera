@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player, FormationKey, CareerResult, LeaderboardItem, PositionRole } from './types';
 import { REAL_STAR_PLAYERS, generateRandomPlayer } from './data/realPlayers';
+import { FORMATION_CONFIGS, remapSquadToFormation } from './data/formations';
 import { PitchBoard } from './components/PitchBoard';
 import { CareerMode } from './components/CareerMode';
 import { MatchSimulator } from './components/MatchSimulator';
@@ -35,7 +36,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('pitch');
   const [soundActive, setSoundActive] = useState(true);
   const [clubBudget, setClubBudget] = useState(120000000); // €120M
-  const [formation, setFormation] = useState<FormationKey>('4-3-3');
+  const [formation, setFormation] = useState<FormationKey>(() => {
+    try {
+      const saved = localStorage.getItem('fut_formation_v1') as FormationKey;
+      if (saved && FORMATION_CONFIGS[saved]) return saved;
+    } catch {}
+    return '4-3-3';
+  });
 
   // Starter 11 Squad
   const [squad, setSquad] = useState<Record<string, Player | null>>(() => {
@@ -99,7 +106,7 @@ export default function App() {
   useEffect(() => {
     const starterIds = new Set(
       Object.values(squad)
-        .filter((p): p is Player => p !== null)
+        .filter((p): p is Player => Boolean(p))
         .map(p => p.id)
     );
     setBench(prev => {
@@ -121,14 +128,24 @@ export default function App() {
     return [];
   });
 
-  // Persist squad & bench
+  // Persist squad, formation & bench
   useEffect(() => {
     try {
       localStorage.setItem('fut_squad_v1', JSON.stringify(squad));
       localStorage.setItem('fut_bench_v1', JSON.stringify(bench));
+      localStorage.setItem('fut_formation_v1', formation);
       localStorage.setItem('fut_leaderboard_v1', JSON.stringify(leaderboard));
     } catch {}
-  }, [squad, bench, leaderboard]);
+  }, [squad, bench, formation, leaderboard]);
+
+  // Intelligent Formation Switcher (Remaps 11 starters so no player is lost and screen never goes blank)
+  const handleFormationChange = (newFormation: FormationKey) => {
+    setFormation(newFormation);
+    const { newSquad, updatedBench } = remapSquadToFormation(squad, newFormation, bench);
+    setSquad(newSquad);
+    setBench(updatedBench);
+    speakText(`Sxema ${newFormation} ga o‘zgartirildi`, true);
+  };
 
   const toggleSound = () => {
     const next = toggleAudio();
@@ -263,7 +280,7 @@ export default function App() {
     setBench(prev => prev.map(p => (p.id === updated.id ? updated : p)));
   };
 
-  const starterList = Object.values(squad).filter((p): p is Player => p !== null);
+  const starterList = Object.values(squad).filter((p): p is Player => Boolean(p));
   // Ensure unique list of all squad players across pitch, bench, and reserves
   const allSquadPlayers = React.useMemo(() => {
     const map = new Map<string, Player>();
@@ -405,7 +422,7 @@ export default function App() {
             bench={bench}
             reserves={reserves}
             formation={formation}
-            onFormationChange={setFormation}
+            onFormationChange={handleFormationChange}
             onAssignPlayer={handleAssignPlayer}
             onRemovePlayer={handleRemovePlayer}
             onSwapPositions={handleSwapPositions}
