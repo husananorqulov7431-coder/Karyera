@@ -7,6 +7,8 @@ import { MatchSimulator } from './components/MatchSimulator';
 import { TransferMarket } from './components/TransferMarket';
 import { PlayerTraining } from './components/PlayerTraining';
 import { Leaderboard } from './components/Leaderboard';
+import { MultiplayerRoom } from './components/MultiplayerRoom';
+import { EntranceSplashScreen } from './components/EntranceSplashScreen';
 import { toggleAudio, isAudioEnabled, sfxClick, sfxCardFlip } from './utils/audio';
 import { speakText } from './utils/speech';
 import {
@@ -18,16 +20,18 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
-  Shield,
   Coins,
-  Flame,
-  Award,
-  Headphones
+  Radio,
+  Headphones,
+  X
 } from 'lucide-react';
 
-type TabType = 'career' | 'pitch' | 'match' | 'transfer' | 'training' | 'leaderboard';
+type TabType = 'pitch' | 'career' | 'multiplayer' | 'match' | 'transfer' | 'training' | 'leaderboard';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState<boolean>(true);
+  const [showExitModal, setShowExitModal] = useState<boolean>(false);
+
   const [activeTab, setActiveTab] = useState<TabType>('pitch');
   const [soundActive, setSoundActive] = useState(true);
   const [clubBudget, setClubBudget] = useState(120000000); // €120M
@@ -157,38 +161,29 @@ export default function App() {
     }
   };
 
-  const handleRandomSquad = () => {
-    sfxCardFlip(1);
-    const pool = [...REAL_STAR_PLAYERS].sort(() => 0.5 - Math.random());
-    const usedIds = new Set<string>();
+  // Swap positions on pitch
+  const handleSwapPositions = (fromSlotId: string, toSlotId: string) => {
+    setSquad(prev => {
+      const copy = { ...prev };
+      const temp = copy[fromSlotId];
+      copy[fromSlotId] = copy[toSlotId];
+      copy[toSlotId] = temp;
+      return copy;
+    });
+  };
 
-    const getPlayer = (predicate: (p: Player) => boolean, fallbackRole: PositionRole) => {
-      const found = pool.find(p => !usedIds.has(p.id) && predicate(p));
-      if (found) {
-        usedIds.add(found.id);
-        return found;
-      }
-      const rand = generateRandomPlayer(fallbackRole);
-      usedIds.add(rand.id);
-      return rand;
-    };
-
-    const newSquad: Record<string, Player | null> = {
-      gk: getPlayer(p => p.role === 'GK', 'GK'),
-      lb: getPlayer(p => p.role === 'LB' || p.naturalPositions.includes('LB'), 'LB'),
-      cb1: getPlayer(p => p.role === 'CB', 'CB'),
-      cb2: getPlayer(p => p.role === 'CB', 'CB'),
-      rb: getPlayer(p => p.role === 'RB' || p.naturalPositions.includes('RB'), 'RB'),
-      cm1: getPlayer(p => p.family === 'MF' && p.role !== 'DMF', 'CMF'),
-      cdm: getPlayer(p => p.role === 'DMF' || (p.family === 'MF' && p.attrs.def >= 78), 'DMF'),
-      cm2: getPlayer(p => p.family === 'MF', 'CMF'),
-      lw: getPlayer(p => p.role === 'LWF' || p.naturalPositions.includes('LWF') || p.role === 'LMF', 'LWF'),
-      st: getPlayer(p => p.role === 'CF' || p.role === 'ST', 'CF'),
-      rw: getPlayer(p => p.role === 'RWF' || p.naturalPositions.includes('RWF') || p.role === 'RMF', 'RWF')
-    };
-    setSquad(newSquad);
-    setBench(prev => prev.filter(p => !usedIds.has(p.id)));
-    setReserves(prev => prev.filter(p => !usedIds.has(p.id)));
+  // Swap bench player with pitch slot
+  const handleSwapBenchPlayer = (benchPlayerId: string, targetSlotId: string) => {
+    const benchPlayer =
+      bench.find(p => p.id === benchPlayerId) || reserves.find(p => p.id === benchPlayerId);
+    if (!benchPlayer) return;
+    const currentStarter = squad[targetSlotId];
+    setSquad(prev => ({ ...prev, [targetSlotId]: benchPlayer }));
+    setBench(prev => {
+      const filtered = prev.filter(p => p.id !== benchPlayerId);
+      if (currentStarter) filtered.push(currentStarter);
+      return filtered;
+    });
   };
 
   const handleClearSquad = () => {
@@ -282,13 +277,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full bg-[#070a1a] text-white flex flex-col font-sans relative overflow-x-hidden selection:bg-cyan-500 selection:text-black">
+      {/* Smooth Entrance / Loading Splash Screen */}
+      {showSplash && <EntranceSplashScreen onComplete={() => setShowSplash(false)} />}
+
       {/* Stadium Atmospheric Glows */}
       <div className="fixed -top-40 -left-40 w-96 h-96 rounded-full bg-purple-600/20 filter blur-[100px] pointer-events-none" />
       <div className="fixed -bottom-40 -right-40 w-96 h-96 rounded-full bg-cyan-500/20 filter blur-[100px] pointer-events-none" />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-blue-600/10 filter blur-[140px] pointer-events-none" />
 
       {/* Main Glass Header */}
-      <header className="sticky top-0 z-40 w-full px-4 py-3 bg-slate-950/70 border-b border-white/10 backdrop-blur-2xl">
+      <header className="sticky top-0 z-40 w-full px-4 py-3 bg-slate-950/80 border-b border-white/10 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
           {/* Logo & Tagline */}
           <div className="flex items-center gap-3">
@@ -301,21 +299,24 @@ export default function App() {
                   Futbol Taqdiri & Karyera
                 </h1>
                 <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                  PRO v4.0
+                  PRO v4.2
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Haqiqiy futbol qonuniyatlari, yulduzlar tahlili va taktik simulyatsiya
+                Haqiqiy futbol qonuniyatlari, 1v1 multiplayer va taktik simulyatsiya
               </p>
             </div>
           </div>
 
-          {/* Right Header Badges: Budget, Voice Narration & Audio Toggle */}
+          {/* Right Header Badges: Exit Emoji, Budget, Audio Toggle */}
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => {
                 sfxClick();
-                speakText("Futbol Taqdiri o'yini: Ovozli sharh faol. Lotereya, o'yinchi mashg'ulotlari va transfer bozorida ovozli eshittirish yoqilgan.", true);
+                speakText(
+                  "Futbol Taqdiri o'yini: Ovozli sharh faol. Lotereya, o'yinchi mashg'ulotlari va transfer bozorida ovozli eshittirish yoqilgan.",
+                  true
+                );
               }}
               title="Ko'zi ojizlar uchun ovozli sharhni sinash"
               aria-label="Ovozli sharh yordamchisini eshitish"
@@ -340,14 +341,32 @@ export default function App() {
             >
               {soundActive ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-red-400" />}
             </button>
+
+            {/* Requested Small Emoji-Only Exit Button */}
+            <button
+              onClick={() => {
+                sfxClick();
+                setShowExitModal(true);
+              }}
+              className="p-2 rounded-2xl bg-white/[0.05] hover:bg-red-500/20 hover:border-red-400/40 border border-white/10 text-lg transition-all cursor-pointer select-none"
+              title="Ilovadan Chiqish"
+              aria-label="Ilovadan chiqish"
+            >
+              🚪
+            </button>
           </div>
         </div>
 
         {/* Navigation Tabs Bar */}
-        <div role="tablist" aria-label="Asosiy bo'limlar" className="max-w-7xl mx-auto mt-3 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+        <div
+          role="tablist"
+          aria-label="Asosiy bo'limlar"
+          className="max-w-7xl mx-auto mt-3 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar"
+        >
           {[
             { id: 'pitch', label: 'Taktik Plan & Jamoa', icon: <Users className="w-3.5 h-3.5" /> },
             { id: 'career', label: 'Karyera Lotereyasi', icon: <Sparkles className="w-3.5 h-3.5" /> },
+            { id: 'multiplayer', label: '1v1 Onlayn Multiplayer', icon: <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" /> },
             { id: 'match', label: 'Jonli Match', icon: <Swords className="w-3.5 h-3.5" /> },
             { id: 'transfer', label: 'Transfer Bozori', icon: <ShoppingBag className="w-3.5 h-3.5" /> },
             { id: 'training', label: 'Rivojlantirish', icon: <Dumbbell className="w-3.5 h-3.5" /> },
@@ -369,7 +388,9 @@ export default function App() {
                   : 'bg-white/[0.03] hover:bg-white/[0.07] border-white/5 text-slate-400 hover:text-white'
               }`}
             >
-              <span className={activeTab === tab.id ? 'text-cyan-300' : 'text-slate-400'}>{tab.icon}</span>
+              <span className={activeTab === tab.id ? 'text-cyan-300' : 'text-slate-400'}>
+                {tab.icon}
+              </span>
               <span>{tab.label}</span>
             </button>
           ))}
@@ -387,10 +408,16 @@ export default function App() {
             onFormationChange={setFormation}
             onAssignPlayer={handleAssignPlayer}
             onRemovePlayer={handleRemovePlayer}
-            onRandomSquad={handleRandomSquad}
+            onSwapPositions={handleSwapPositions}
+            onSwapBenchPlayer={handleSwapBenchPlayer}
+            onUpdatePlayer={handleUpdatePlayer}
             onClearSquad={handleClearSquad}
             availablePlayers={allSquadPlayers}
           />
+        )}
+
+        {activeTab === 'multiplayer' && (
+          <MultiplayerRoom mySquad={squad} myClubName="Mening FC" onUpdateSquad={setSquad} />
         )}
 
         {activeTab === 'career' && (
@@ -418,10 +445,7 @@ export default function App() {
         )}
 
         {activeTab === 'training' && (
-          <PlayerTraining
-            userSquad={allSquadPlayers}
-            onUpdatePlayer={handleUpdatePlayer}
-          />
+          <PlayerTraining userSquad={allSquadPlayers} onUpdatePlayer={handleUpdatePlayer} />
         )}
 
         {activeTab === 'leaderboard' && (
@@ -446,6 +470,44 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Exit Confirmation Modal */}
+      {showExitModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          onClick={() => setShowExitModal(false)}
+        >
+          <div
+            className="relative max-w-sm w-full p-6 rounded-3xl bg-slate-900 border border-white/20 shadow-2xl flex flex-col items-center gap-4 text-center"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-16 h-16 rounded-3xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-3xl">
+              🚪
+            </div>
+            <h3 className="text-lg font-black text-white">Ilovadan Chiqish</h3>
+            <p className="text-xs text-slate-300">
+              Bosh sahifa / Kirish animatsiyasiga qaytishni yoki seansni to‘xtatishni xohlaysizmi?
+            </p>
+            <div className="flex gap-2 w-full mt-2">
+              <button
+                onClick={() => {
+                  setShowExitModal(false);
+                  setShowSplash(true);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-xs transition-colors cursor-pointer"
+              >
+                Kirish ekraniga qaytish
+              </button>
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Bekor qilish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer Note */}
       <footer className="w-full py-4 border-t border-white/5 text-center text-xs text-slate-500">

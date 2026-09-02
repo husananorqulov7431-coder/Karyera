@@ -20,6 +20,16 @@ export type PositionRole =
 
 export type CardTier = 'goat' | 'legend' | 'toty' | 'gold' | 'emerald' | 'silver';
 
+export type CardBackgroundTheme =
+  | 'auto'
+  | 'gold-stadium'
+  | 'champions-galaxy'
+  | 'neon-cyber'
+  | 'magma-fire'
+  | 'emerald-pitch'
+  | 'ice-diamond'
+  | 'royal-purple';
+
 export type PlayStyle =
   | 'Tezkor hujumchi'
   | 'Jarima maydoni ovchisi'
@@ -89,6 +99,7 @@ export interface Player {
   club: string;
   league: string;
   cardTier: CardTier;
+  cardBackgroundTheme?: CardBackgroundTheme;
   attrs: PlayerAttributes;
   avatar: AvatarConfig;
   playStyle: PlayStyle;

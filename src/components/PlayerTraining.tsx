@@ -24,7 +24,7 @@ const getDrillsForPlayer = (p: Player): DrillConfig[] => {
     return [
       { key: 'div', name: 'Sakrash & Seyv (Diving)', desc: 'Burchaklarga parvoz va qiyin to‘plarni qaytarish', icon: '🧤' },
       { key: 'ref', name: 'Reaksiya & Refleks (Reflexes)', desc: 'Yaqin masofadan berilgan zarbalarni qaytarish', icon: '⚡' },
-      { key: 'han', name: 'To‘pni Mahkam Ushlash (Handling)', desc: 'Kuchli zarbalarni qo‘ldan chiqarmasdan tutish', icon: '🤲' },
+      { key: 'han', name: 'To‘pni Mahkam Ushlash (Handling)', desc: 'Kuchli zarbalarni qo‘ldan chiqarmasdan tutish', icon: '✊' },
       { key: 'pos', name: 'Pozitsiya Tanlash (Positioning)', desc: 'Darvoza va burchaklarni to‘g‘ri yopish', icon: '🎯' },
       { key: 'kic', name: 'To‘pni Kiritish (GK Kicking)', desc: 'Hujumni tezkor va aniq pas bilan boshlash', icon: '🚀' },
       { key: 'spd', name: '1-ga-1 Chiqish & Tezlik (Rush)', desc: 'Hujumchi oyog‘iga dadil tashlanish', icon: '🛡️' }
