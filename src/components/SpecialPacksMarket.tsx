@@ -134,8 +134,8 @@ export const SpecialPacksMarket: React.FC<SpecialPacksMarketProps> = ({
               </div>
             </div>
 
-            {/* Epic & Card Studio Button */}
-            {onOpenEpicStudio && (
+            {/* Epic & Card Studio Button (Faqat Administrator uchun) */}
+            {onOpenEpicStudio && currentUser?.isAdmin && (
               <button
                 onClick={() => {
                   sfxClick();
@@ -145,6 +145,20 @@ export const SpecialPacksMarket: React.FC<SpecialPacksMarketProps> = ({
               >
                 <Award className="w-4 h-4 text-slate-950" />
                 <span>Epic Studio</span>
+              </button>
+            )}
+
+            {/* Admin Pack Boshqaruvchisi (Faqat Administrator uchun) */}
+            {onOpenAdminManager && currentUser?.isAdmin && (
+              <button
+                onClick={() => {
+                  sfxClick();
+                  onOpenAdminManager();
+                }}
+                className="px-3.5 py-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 text-amber-300 font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>Admin Pack Manager</span>
               </button>
             )}
 
@@ -175,17 +189,19 @@ export const SpecialPacksMarket: React.FC<SpecialPacksMarketProps> = ({
               <span>Telegram Bot & AI Hub</span>
             </button>
 
-            {/* LocalStorage & GitHub Sync Hub Button */}
-            <button
-              onClick={() => {
-                sfxClick();
-                if (onOpenSyncHub) onOpenSyncHub();
-              }}
-              className="px-3.5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white border border-cyan-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
-            >
-              <HardDrive className="w-4 h-4 text-cyan-400" />
-              <span>Zaxira & GitHub</span>
-            </button>
+            {/* LocalStorage & GitHub Sync Hub Button (Faqat Admin uchun) */}
+            {onOpenSyncHub && currentUser?.isAdmin && (
+              <button
+                onClick={() => {
+                  sfxClick();
+                  onOpenSyncHub();
+                }}
+                className="px-3.5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white border border-cyan-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
+              >
+                <HardDrive className="w-4 h-4 text-cyan-400" />
+                <span>Zaxira & GitHub</span>
+              </button>
+            )}
 
             {/* News Board (Yangiliklar) Button */}
             <button

@@ -118,7 +118,7 @@ export default defineConfig(() => {
           // User Profile Authentication & Management API
           server.middlewares.use('/api/users/login', (req, res) => {
             const PROFILES_FILE = '/tmp/efootball_user_profiles.json';
-            const BACKUP_FILE = path.join(process.cwd(), 'data', 'profiles.json');
+            const BACKUP_FILE = path.join(process.cwd(), 'src', 'data', 'profiles.json');
             if (req.method === 'POST') {
               let body = '';
               req.on('data', chunk => { body += chunk; });
@@ -142,6 +142,26 @@ export default defineConfig(() => {
                   const cleanId = String(managerId).trim().toUpperCase();
                   const cleanPass = String(password).trim();
 
+                  // Special check for head admin
+                  if (
+                    (cleanId === 'EF-6130389200' || cleanId === '6130389200' || cleanId === 'ADMIN') &&
+                    (cleanPass === 'ANORQULOV_7431' || cleanPass === '743100')
+                  ) {
+                    const adminUser = {
+                      managerId: 'EF-6130389200',
+                      telegramId: '6130389200',
+                      displayName: 'Bosh Administrator',
+                      isAdmin: true,
+                      gp: 9999999,
+                      eCoins: 50000,
+                      matchesPlayed: 50,
+                      matchesWon: 48
+                    };
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ ok: true, user: adminUser }));
+                    return;
+                  }
+
                   const user = profiles.find(
                     (p: any) =>
                       String(p.managerId).trim().toUpperCase() === cleanId ||
@@ -154,7 +174,7 @@ export default defineConfig(() => {
                     res.end(
                       JSON.stringify({
                         ok: false,
-                        error: `"${cleanId}" ID raqamli profil topilmadi! Iltimos, avval Telegram botimizda (@Futbolkarerapack_bot) profil yarating.`
+                        error: `"${cleanId}" ID raqamli profil topilmadi! Iltimos, Veb yoki Telegram bot (@Futbolkarerapack_bot) orqali hisob oching.`
                       })
                     );
                     return;
@@ -166,7 +186,7 @@ export default defineConfig(() => {
                     res.end(
                       JSON.stringify({
                         ok: false,
-                        error: "Parol noto'g'ri kiritildi! Telegram botdan '🔑 Parolni O'zgartirish' orqali yangilashingiz mumkin."
+                        error: "Parol noto'g'ri kiritildi! Iltimos, qayta urinib ko'ring."
                       })
                     );
                     return;
@@ -187,10 +207,108 @@ export default defineConfig(() => {
             }
           });
 
+          // Change Password API
+          server.middlewares.use('/api/users/change-password', (req, res) => {
+            const PROFILES_FILE = '/tmp/efootball_user_profiles.json';
+            const BACKUP_FILE = path.join(process.cwd(), 'src', 'data', 'profiles.json');
+            if (req.method === 'POST') {
+              let body = '';
+              req.on('data', chunk => { body += chunk; });
+              req.on('end', () => {
+                try {
+                  const { managerId, newPassword } = JSON.parse(body || '{}');
+                  if (!managerId || !newPassword) {
+                    res.statusCode = 400;
+                    res.end(JSON.stringify({ ok: false, error: 'Menejer ID va yangi parol kiritilishi shart!' }));
+                    return;
+                  }
+
+                  let profiles: any[] = [];
+                  if (fs.existsSync(PROFILES_FILE)) {
+                    try { profiles = JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf-8')); } catch {}
+                  } else if (fs.existsSync(BACKUP_FILE)) {
+                    try { profiles = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf-8')); } catch {}
+                  }
+
+                  const cleanId = String(managerId).trim().toUpperCase();
+                  const idx = profiles.findIndex(
+                    (p: any) =>
+                      String(p.managerId).trim().toUpperCase() === cleanId ||
+                      String(p.telegramId).trim() === cleanId
+                  );
+
+                  if (idx >= 0) {
+                    profiles[idx].password = String(newPassword).trim();
+                    profiles[idx].updatedAt = Date.now();
+                    fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles, null, 2), 'utf-8');
+                    try { fs.writeFileSync(BACKUP_FILE, JSON.stringify(profiles, null, 2), 'utf-8'); } catch {}
+                  }
+
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ ok: true, message: 'Parol muvaffaqiyatli saqlandi!' }));
+                } catch (err: any) {
+                  res.statusCode = 500;
+                  res.end(JSON.stringify({ ok: false, error: err.message }));
+                }
+              });
+            } else {
+              res.statusCode = 405;
+              res.end('Method Not Allowed');
+            }
+          });
+
+          // Register User API
+          server.middlewares.use('/api/users/register', (req, res) => {
+            const PROFILES_FILE = '/tmp/efootball_user_profiles.json';
+            const BACKUP_FILE = path.join(process.cwd(), 'src', 'data', 'profiles.json');
+            if (req.method === 'POST') {
+              let body = '';
+              req.on('data', chunk => { body += chunk; });
+              req.on('end', () => {
+                try {
+                  const { displayName, password, username } = JSON.parse(body || '{}');
+                  let profiles: any[] = [];
+                  if (fs.existsSync(PROFILES_FILE)) {
+                    try { profiles = JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf-8')); } catch {}
+                  } else if (fs.existsSync(BACKUP_FILE)) {
+                    try { profiles = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf-8')); } catch {}
+                  }
+
+                  const randNum = Math.floor(100000 + Math.random() * 900000);
+                  const newProfile = {
+                    managerId: `EF-${randNum}`,
+                    displayName: displayName || `Menejer #${randNum}`,
+                    username: username || `user_${randNum}`,
+                    password: password || '123456',
+                    gp: 1000,
+                    eCoins: 100,
+                    isAdmin: false,
+                    createdAt: Date.now(),
+                    matchesPlayed: 0,
+                    matchesWon: 0
+                  };
+
+                  profiles.push(newProfile);
+                  fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles, null, 2), 'utf-8');
+                  try { fs.writeFileSync(BACKUP_FILE, JSON.stringify(profiles, null, 2), 'utf-8'); } catch {}
+
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ ok: true, user: newProfile }));
+                } catch (err: any) {
+                  res.statusCode = 500;
+                  res.end(JSON.stringify({ ok: false, error: err.message }));
+                }
+              });
+            } else {
+              res.statusCode = 405;
+              res.end('Method Not Allowed');
+            }
+          });
+
           // Sync user GP / eCoins back to profile
           server.middlewares.use('/api/users/sync', (req, res) => {
             const PROFILES_FILE = '/tmp/efootball_user_profiles.json';
-            const BACKUP_FILE = path.join(process.cwd(), 'data', 'profiles.json');
+            const BACKUP_FILE = path.join(process.cwd(), 'src', 'data', 'profiles.json');
             if (req.method === 'POST') {
               let body = '';
               req.on('data', chunk => { body += chunk; });

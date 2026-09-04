@@ -21,6 +21,11 @@ import { DataSyncBackupModal } from './components/DataSyncBackupModal';
 import { EpicCardStudioModal } from './components/EpicCardStudioModal';
 import { AppUpdateModal } from './components/AppUpdateModal';
 import { shouldPromptUserUpdate } from './utils/versionControl';
+import {
+  getActiveAccount,
+  toGoogleUserAccount,
+  updateActiveAccountData
+} from './utils/userStore';
 import { toggleAudio, isAudioEnabled, sfxClick, sfxCardFlip, sfxWhistle, sfxSpendCoins } from './utils/audio';
 import { speakText } from './utils/speech';
 import {
@@ -115,38 +120,34 @@ export default function App() {
   const [soundActive, setSoundActive] = useState(true);
   const [clubBudget, setClubBudget] = useState(120000000); // €120M
 
-  // Google User Account (Mehmon sifatida boshlanadi, faqat Google va 2FA Tasdiq orqali Admin bo'ladi)
+  // User Account (Ko'p hisobli tizim: getActiveAccount orqali olinadi)
   const [currentUser, setCurrentUser] = useState<GoogleUserAccount | null>(() => {
     try {
-      const saved = localStorage.getItem('efootball_user_v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Faqat haqiqiy Google va 2FA Tasdiq Amallari orqali tasdiqlangan bo'lsagina admin huquqi beriladi
-        const isOwner = parsed?.email && ['husananorqulov7431@gmail.com', 'geminiai7431@gmail.com'].includes(parsed.email.toLowerCase());
-        if (!isOwner || !parsed.adminVerified) {
-          parsed.isAdmin = false;
-        }
-        return parsed;
-      }
-    } catch {}
-    return {
-      email: '',
-      displayName: 'Mehmon Menejer',
-      isAdmin: false,
-      isGoogleVerified: false,
-      adminVerified: false,
-      gp: 1000,
-      eCoins: 100,
-      matchesPlayed: 0,
-      matchesWon: 0,
-      matchesDrawn: 0,
-      matchesLost: 0,
-      goalsScored: 0,
-      goalsConceded: 0,
-      signedInAt: Date.now()
-    };
+      const active = getActiveAccount();
+      return toGoogleUserAccount(active);
+    } catch {
+      return {
+        email: '',
+        displayName: 'Mehmon Menejer',
+        isAdmin: false,
+        isGoogleVerified: false,
+        adminVerified: false,
+        gp: 1000,
+        eCoins: 100,
+        matchesPlayed: 0,
+        matchesWon: 0,
+        matchesDrawn: 0,
+        matchesLost: 0,
+        goalsScored: 0,
+        goalsConceded: 0,
+        signedInAt: Date.now()
+      };
+    }
   });
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authModalTab, setAuthModalTab] = useState<
+    'my_profile' | 'accounts' | 'admin_login' | 'telegram_login' | 'register' | 'password_change'
+  >('my_profile');
   const [showAdminPackModal, setShowAdminPackModal] = useState<boolean>(false);
   const [showTelegramBotModal, setShowTelegramBotModal] = useState<boolean>(false);
   const [showSyncModal, setShowSyncModal] = useState<boolean>(false);
@@ -318,7 +319,7 @@ export default function App() {
     return [];
   });
 
-  // Persist squad, formation, bench, packs & user
+  // Persist squad, formation, bench, packs, user & multi-account state
   useEffect(() => {
     try {
       localStorage.setItem('fut_squad_v1', JSON.stringify(squad));
@@ -327,10 +328,25 @@ export default function App() {
       localStorage.setItem('fut_leaderboard_v1', JSON.stringify(leaderboard));
       if (currentUser) {
         localStorage.setItem('efootball_user_v1', JSON.stringify(currentUser));
+        updateActiveAccountData({
+          gp: currentUser.gp,
+          eCoins: currentUser.eCoins,
+          matchesPlayed: currentUser.matchesPlayed,
+          matchesWon: currentUser.matchesWon,
+          matchesDrawn: currentUser.matchesDrawn,
+          matchesLost: currentUser.matchesLost,
+          goalsScored: currentUser.goalsScored,
+          goalsConceded: currentUser.goalsConceded,
+          isAdmin: currentUser.isAdmin,
+          squad,
+          bench,
+          reserves,
+          clubBudget
+        });
       }
       localStorage.setItem('efootball_packs_v1', JSON.stringify(specialPacks));
     } catch {}
-  }, [squad, bench, formation, leaderboard, currentUser, specialPacks]);
+  }, [squad, bench, reserves, formation, leaderboard, currentUser, specialPacks, clubBudget]);
 
   // Intelligent Formation Switcher (Remaps 11 starters so no player is lost and screen never goes blank)
   const handleFormationChange = (newFormation: FormationKey) => {
@@ -835,31 +851,74 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Header Badges: Google Profile, GP, Budget, Audio, Exit */}
+          {/* Right Header Badges: Admin Button, Profile, GP, Budget, Audio, Exit */}
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
-            {/* Google Profile & GP Currency */}
+            {/* Dedicated Admin Login / Panel Button */}
+            {!currentUser?.isAdmin ? (
+              <button
+                onClick={() => {
+                  sfxClick();
+                  setAuthModalTab('admin_login');
+                  setShowAuthModal(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/50 text-amber-300 text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95"
+                title="Administrator sifatida tizimga kirish"
+              >
+                <Shield className="w-3.5 h-3.5 text-amber-400" />
+                <span>Admin Kirish</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  sfxClick();
+                  setShowAdminPackModal(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-md shadow-amber-400/30 active:scale-95"
+                title="Admin Pack Boshqaruvchisiga o‘tish"
+              >
+                <Shield className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+                <span>👑 Admin Paneli</span>
+              </button>
+            )}
+
+            {/* Profile & Multi-Account Switcher */}
             <div className="flex items-center gap-1.5 sm:gap-2">
               <button
                 onClick={() => {
                   sfxClick();
+                  setAuthModalTab('my_profile');
                   setShowAuthModal(true);
                 }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-2xl border border-white/15 bg-white/[0.06] hover:bg-white/10 text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
-                title="O‘yinchi Profilini Ko‘rish"
+                title="Hisoblar va Menejer Profilini Boshqarish"
               >
-                <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-black text-slate-900 shadow-sm">
+                <div className="relative w-6 h-6 rounded-full bg-slate-800 border border-white/20 flex items-center justify-center text-xs font-black text-cyan-300 shadow-sm overflow-hidden">
                   {currentUser?.photoURL ? (
                     <img src={currentUser.photoURL} alt="avatar" className="w-full h-full rounded-full object-cover" />
                   ) : (
-                    'G'
+                    currentUser?.displayName ? currentUser.displayName[0] : 'M'
+                  )}
+                  {currentUser?.isAdmin && (
+                    <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-amber-400" />
                   )}
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-[10px] sm:text-xs font-black leading-none text-white">
-                    {currentUser?.displayName || 'Google bilan kirish'}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] sm:text-xs font-black leading-none text-white truncate max-w-[110px]">
+                      {currentUser?.displayName || 'Menejer'}
+                    </span>
+                    {currentUser?.isAdmin && (
+                      <span className="text-[9px] text-amber-400 font-bold">👑</span>
+                    )}
+                  </div>
                   <span className="text-[9px] text-slate-400 leading-tight truncate max-w-[120px]">
-                    {currentUser?.email ? 'O‘yinchi Profili' : 'Hisobga ulanish'}
+                    {currentUser?.isAdmin
+                      ? 'Bosh Admin'
+                      : currentUser?.managerId
+                      ? `ID: ${currentUser.managerId}`
+                      : currentUser?.email
+                      ? 'Menejer'
+                      : 'Mehmon Rejim'}
                   </span>
                 </div>
               </button>
@@ -1145,8 +1204,22 @@ export default function App() {
       {showAuthModal && (
         <GoogleAuthModal
           currentUser={currentUser}
+          initialTab={authModalTab}
           onLogin={(user) => {
             setCurrentUser(user);
+            const active = getActiveAccount();
+            if (active.squad && Object.keys(active.squad).length > 0) {
+              setSquad(active.squad);
+            }
+            if (active.bench && active.bench.length > 0) {
+              setBench(active.bench);
+            }
+            if (active.reserves && active.reserves.length > 0) {
+              setReserves(active.reserves);
+            }
+            if (active.clubBudget !== undefined && active.clubBudget > 0) {
+              setClubBudget(active.clubBudget);
+            }
             setShowAuthModal(false);
           }}
           onLogout={() => {

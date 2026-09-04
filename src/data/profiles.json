@@ -22,5 +22,17 @@
     "createdAt": 1740000000000,
     "matchesPlayed": 10,
     "matchesWon": 8
+  },
+  {
+    "managerId": "EF-8448313015",
+    "telegramId": "8448313015",
+    "displayName": "Husan .",
+    "password": "EF-CV9NCJ",
+    "gp": 1000,
+    "eCoins": 100,
+    "isAdmin": false,
+    "createdAt": 1788546974512,
+    "matchesPlayed": 0,
+    "matchesWon": 0
   }
 ]
