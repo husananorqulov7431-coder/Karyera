@@ -35,8 +35,29 @@ export interface UserProfile {
   clubBudget?: number;
 }
 
-const ACCOUNTS_STORAGE_KEY = 'efootball_accounts_v3';
-const ACTIVE_ACCOUNT_ID_KEY = 'efootball_active_account_id_v3';
+// Brauzer keshidagi eski eskirgan malumotlarni tozalash va v5 toza tizimga o'tish
+const CURRENT_VERSION = 'v5';
+const ACCOUNTS_STORAGE_KEY = `efootball_accounts_${CURRENT_VERSION}`;
+const ACTIVE_ACCOUNT_ID_KEY = `efootball_active_account_id_${CURRENT_VERSION}`;
+
+if (typeof window !== 'undefined') {
+  try {
+    const legacyKeys = [
+      'efootball_accounts_v1',
+      'efootball_accounts_v2',
+      'efootball_accounts_v3',
+      'efootball_accounts_v4',
+      'efootball_active_account_id_v1',
+      'efootball_active_account_id_v2',
+      'efootball_active_account_id_v3',
+      'efootball_active_account_id_v4',
+      'efootball_user_v1',
+      'efootball_auth_prompted_v1'
+    ];
+    legacyKeys.forEach(key => localStorage.removeItem(key));
+  } catch {}
+}
+
 export const PRIMARY_ADMIN_CHAT_ID = '6130389200';
 export const ADMIN_MASTER_PASSWORDS = ['ANORQULOV_7431', '743100', 'ADMIN2026'];
 
@@ -65,7 +86,7 @@ export function createDefaultGuestProfile(): UserProfile {
   };
 }
 
-// Barcha akkauntlarni yuklash (agar bo'sh bo'lsa default profiles.json dan to'ldiriladi)
+// Barcha akkauntlarni yuklash (GitHub / Telegram Bot profiles.json dan boshlanadi)
 export function getAllSavedAccounts(): UserProfile[] {
   try {
     const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
@@ -79,7 +100,7 @@ export function getAllSavedAccounts(): UserProfile[] {
     console.warn('Akkauntlarni o‘qishda xatolik:', err);
   }
 
-  // Boshlang'ich profillar (profiles.json asosida)
+  // Boshlang'ich profillar (GitHub / Telegram Bot dagi toza profiles.json asosida)
   const initialAccounts: UserProfile[] = (defaultProfilesJson as any[]).map((dp, idx) => {
     const isLeadAdmin =
       String(dp.telegramId) === PRIMARY_ADMIN_CHAT_ID ||
@@ -117,6 +138,58 @@ export function getAllSavedAccounts(): UserProfile[] {
 
   saveAllAccounts(initialAccounts);
   return initialAccounts;
+}
+
+// Server (Bot & GitHub) dan eng so'nggi profillarni sinxronlashtirish
+export async function syncProfilesFromServer(): Promise<UserProfile[]> {
+  try {
+    const res = await fetch('/api/profiles');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.profiles) && data.profiles.length > 0) {
+        const synced: UserProfile[] = (data.profiles as any[]).map((dp, idx) => {
+          const isLeadAdmin =
+            String(dp.telegramId) === PRIMARY_ADMIN_CHAT_ID ||
+            dp.managerId === `EF-${PRIMARY_ADMIN_CHAT_ID}` ||
+            dp.isAdmin === true;
+
+          return {
+            id: dp.managerId || `USR-${idx + 1}`,
+            managerId: dp.managerId || `EF-${dp.telegramId || '1000'}`,
+            telegramId: dp.telegramId,
+            displayName: dp.displayName || (isLeadAdmin ? 'Bosh Administrator' : 'eFootball Menejer'),
+            username: dp.telegramId ? `tg_${dp.telegramId}` : `user_${idx + 1}`,
+            email: isLeadAdmin ? 'husananorqulov7431@gmail.com' : `${dp.managerId?.toLowerCase() || 'user'}@efootball.app`,
+            password: dp.password || (isLeadAdmin ? 'ANORQULOV_7431' : '123456'),
+            role: isLeadAdmin ? 'admin' : 'user',
+            isAdmin: isLeadAdmin,
+            adminVerified: isLeadAdmin,
+            isGoogleVerified: isLeadAdmin,
+            gp: dp.gp || (isLeadAdmin ? 9999999 : 1000),
+            eCoins: dp.eCoins || (isLeadAdmin ? 50000 : 100),
+            matchesPlayed: dp.matchesPlayed || 0,
+            matchesWon: dp.matchesWon || 0,
+            matchesDrawn: 0,
+            matchesLost: 0,
+            goalsScored: 0,
+            goalsConceded: 0,
+            createdAt: dp.createdAt || Date.now(),
+            lastLoginAt: Date.now(),
+            photoURL: isLeadAdmin
+              ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'
+              : `https://api.dicebear.com/7.x/bottts/svg?seed=${dp.managerId || 'seed'}`,
+            clubBudget: isLeadAdmin ? 500000000 : 120000000
+          };
+        });
+
+        saveAllAccounts(synced);
+        return synced;
+      }
+    }
+  } catch (err) {
+    console.warn('Server profillarini sinxronlashda xatolik:', err);
+  }
+  return getAllSavedAccounts();
 }
 
 // Barcha akkauntlarni saqlash

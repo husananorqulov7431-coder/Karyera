@@ -177,17 +177,19 @@ export const SpecialPacksMarket: React.FC<SpecialPacksMarketProps> = ({
               </button>
             )}
 
-            {/* Telegram Bot & AI Hub Button */}
-            <button
-              onClick={() => {
-                sfxClick();
-                if (onOpenTelegramHub) onOpenTelegramHub();
-              }}
-              className="px-3.5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20"
-            >
-              <Bot className="w-4 h-4 text-slate-950" />
-              <span>Telegram Bot & AI Hub</span>
-            </button>
+            {/* Telegram Bot & AI Hub Button (Faqat Bosh Administrator uchun) */}
+            {onOpenTelegramHub && currentUser?.isAdmin && (
+              <button
+                onClick={() => {
+                  sfxClick();
+                  if (onOpenTelegramHub) onOpenTelegramHub();
+                }}
+                className="px-3.5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20"
+              >
+                <Bot className="w-4 h-4 text-slate-950" />
+                <span>Telegram Bot & AI Hub</span>
+              </button>
+            )}
 
             {/* LocalStorage & GitHub Sync Hub Button (Faqat Admin uchun) */}
             {onOpenSyncHub && currentUser?.isAdmin && (
@@ -203,50 +205,56 @@ export const SpecialPacksMarket: React.FC<SpecialPacksMarketProps> = ({
               </button>
             )}
 
-            {/* News Board (Yangiliklar) Button */}
-            <button
-              onClick={() => {
-                sfxClick();
-                setShowNewsModal(true);
-              }}
-              className="relative px-3.5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white border border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg active:scale-95"
-            >
-              <Newspaper className="w-4 h-4 text-amber-400" />
-              <span>Yangiliklar</span>
-              {visibleNewsCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-mono font-black animate-pulse shadow-md">
-                  {visibleNewsCount}
-                </span>
-              )}
-            </button>
+            {/* News Board (Yangiliklar) Button (Faqat Admin uchun) */}
+            {currentUser?.isAdmin && (
+              <button
+                onClick={() => {
+                  sfxClick();
+                  setShowNewsModal(true);
+                }}
+                className="relative px-3.5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white border border-amber-500/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg active:scale-95"
+              >
+                <Newspaper className="w-4 h-4 text-amber-400" />
+                <span>Yangiliklar</span>
+                {visibleNewsCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-mono font-black animate-pulse shadow-md">
+                    {visibleNewsCount}
+                  </span>
+                )}
+              </button>
+            )}
 
-            {/* Version Update Button */}
-            <button
-              onClick={() => {
-                sfxClick();
-                setShowUpdateModal(true);
-              }}
-              className={`relative px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg active:scale-95 ${
-                updateAvailable
-                  ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-yellow-500 text-slate-950 font-black shadow-amber-400/30 ring-2 ring-amber-300 animate-bounce-short'
-                  : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white border border-cyan-500/30'
-              }`}
-            >
-              <Rocket className={`w-4 h-4 ${updateAvailable ? 'text-slate-950' : 'text-cyan-400'}`} />
-              <span>{updateAvailable ? 'Yangi Versiya!' : 'Versiya'}</span>
-              {updateAvailable && (
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1 animate-ping" />
-              )}
-            </button>
+            {/* Version Update Button (Faqat Administrator uchun) */}
+            {currentUser?.isAdmin && (
+              <button
+                onClick={() => {
+                  sfxClick();
+                  setShowUpdateModal(true);
+                }}
+                className={`relative px-3.5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg active:scale-95 ${
+                  updateAvailable
+                    ? 'bg-gradient-to-r from-amber-400 via-orange-500 to-yellow-500 text-slate-950 font-black shadow-amber-400/30 ring-2 ring-amber-300 animate-bounce-short'
+                    : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white border border-cyan-500/30'
+                }`}
+              >
+                <Rocket className={`w-4 h-4 ${updateAvailable ? 'text-slate-950' : 'text-cyan-400'}`} />
+                <span>{updateAvailable ? 'Yangi Versiya!' : 'Versiya'}</span>
+                {updateAvailable && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute -top-1 -right-1 animate-ping" />
+                )}
+              </button>
+            )}
 
-            {/* Probability Odds Info Button */}
-            <button
-              onClick={() => setShowOddsModal(true)}
-              className="px-3.5 py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Percent className="w-4 h-4 text-cyan-400" />
-              <span>Ehtimollar</span>
-            </button>
+            {/* Probability Odds Info Button (Faqat Administrator uchun) */}
+            {currentUser?.isAdmin && (
+              <button
+                onClick={() => setShowOddsModal(true)}
+                className="px-3.5 py-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Percent className="w-4 h-4 text-cyan-400" />
+                <span>Ehtimollar</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -277,20 +285,28 @@ export const SpecialPacksMarket: React.FC<SpecialPacksMarketProps> = ({
             <h3 className="text-base sm:text-lg font-black text-white mb-1.5">
               Hozirda O‘yinda Faol Packlar Mavjud Emas
             </h3>
-            <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
-              O‘yindagi barcha eski packlar tozalandi. Yuqoridagi <strong className="text-amber-300">Epic Studio</strong> orqali o‘zingiz xohlagan yangi Epic afsonalarni yarating yoki yangi packlar qo‘shing!
-            </p>
-            {onOpenEpicStudio && (
-              <button
-                onClick={() => {
-                  sfxClick();
-                  onOpenEpicStudio();
-                }}
-                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-amber-400/20 flex items-center gap-2"
-              >
-                <Award className="w-4 h-4 text-slate-950" />
-                <span>👑 Yangi Epic / Pack Yaratish</span>
-              </button>
+            {currentUser?.isAdmin ? (
+              <>
+                <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
+                  O‘yindagi barcha eski packlar tozalandi. Yuqoridagi <strong className="text-amber-300">Epic Studio</strong> orqali o‘zingiz xohlagan yangi Epic afsonalarni yarating yoki yangi packlar qo‘shing!
+                </p>
+                {onOpenEpicStudio && (
+                  <button
+                    onClick={() => {
+                      sfxClick();
+                      onOpenEpicStudio();
+                    }}
+                    className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-amber-400/20 flex items-center gap-2"
+                  >
+                    <Award className="w-4 h-4 text-slate-950" />
+                    <span>👑 Yangi Epic / Pack Yaratish</span>
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-slate-400 max-w-md mb-2 leading-relaxed">
+                Hozirda o‘yinda yangi maxsus packlar tayyorlanmoqda. Tez orada yangi afsonaviy o‘yinchilar qutisi taqdim etiladi!
+              </p>
             )}
           </div>
         ) : (

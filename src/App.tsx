@@ -24,7 +24,8 @@ import { shouldPromptUserUpdate } from './utils/versionControl';
 import {
   getActiveAccount,
   toGoogleUserAccount,
-  updateActiveAccountData
+  updateActiveAccountData,
+  syncProfilesFromServer
 } from './utils/userStore';
 import { toggleAudio, isAudioEnabled, sfxClick, sfxCardFlip, sfxWhistle, sfxSpendCoins } from './utils/audio';
 import { speakText } from './utils/speech';
@@ -172,6 +173,18 @@ export default function App() {
       localStorage.setItem('efootball_pack_open_logs_v1', JSON.stringify(packOpenLogs));
     } catch {}
   }, [packOpenLogs]);
+
+  // Server (Bot va GitHub) orqali barcha akkauntlar ro'yxatini toza yangilash
+  useEffect(() => {
+    syncProfilesFromServer()
+      .then(() => {
+        const active = getActiveAccount();
+        if (active) {
+          setCurrentUser(toGoogleUserAccount(active));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // eFootball 2026 Special Packs State (Sinxronlashtirilgan va xatoliklardan himoyalangan)
   const [specialPacks, setSpecialPacks] = useState<SpecialPack[]>(() => {

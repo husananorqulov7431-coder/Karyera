@@ -115,6 +115,22 @@ export default defineConfig(() => {
             }
           });
 
+          // User Profiles List API (Bot va GitHub bilan eng so'nggi profillar)
+          server.middlewares.use('/api/profiles', (_req, res) => {
+            const PROFILES_FILE = '/tmp/efootball_user_profiles.json';
+            const BACKUP_FILE = path.join(process.cwd(), 'src', 'data', 'profiles.json');
+            let profiles: any[] = [];
+            try {
+              if (fs.existsSync(PROFILES_FILE)) {
+                profiles = JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf-8'));
+              } else if (fs.existsSync(BACKUP_FILE)) {
+                profiles = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf-8'));
+              }
+            } catch {}
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true, profiles }));
+          });
+
           // User Profile Authentication & Management API
           server.middlewares.use('/api/users/login', (req, res) => {
             const PROFILES_FILE = '/tmp/efootball_user_profiles.json';
