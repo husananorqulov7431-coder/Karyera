@@ -1,0 +1,26 @@
+[
+  {
+    "managerId": "EF-6130389200",
+    "telegramId": "6130389200",
+    "displayName": "Bosh Administrator",
+    "password": "ANORQULOV_7431",
+    "gp": 9999999,
+    "eCoins": 50000,
+    "isAdmin": true,
+    "createdAt": 1740000000000,
+    "matchesPlayed": 50,
+    "matchesWon": 48
+  },
+  {
+    "managerId": "EF-743100",
+    "telegramId": "743100",
+    "displayName": "eFootball Menejer",
+    "password": "EF-743100",
+    "gp": 5000,
+    "eCoins": 500,
+    "isAdmin": false,
+    "createdAt": 1740000000000,
+    "matchesPlayed": 10,
+    "matchesWon": 8
+  }
+]

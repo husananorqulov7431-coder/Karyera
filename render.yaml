@@ -1,0 +1,12 @@
+services:
+  - type: worker
+    name: efootball-telegram-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run bot
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        value: 8747293611:AAHeCI1LrGQgrajvpkG2aganLSUhvUEBA64
+      - key: NODE_ENV
+        value: production
